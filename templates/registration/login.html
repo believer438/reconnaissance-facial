@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Connexion — SecPresence</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0e1a; --surface: #111827; --border: rgba(255,255,255,0.08);
+    --accent: #3b82f6; --text: #f1f5f9; --muted: #64748b;
+    --danger: #ef4444; --success: #22c55e;
+  }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 2.5rem 2rem; width: 100%; max-width: 400px;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+  }
+  .logo { text-align: center; margin-bottom: 2rem; }
+  .logo-icon {
+    width: 68px; height: 68px;
+    background: linear-gradient(135deg, #2563eb, #4f46e5);
+    border-radius: 18px; margin: 0 auto 1rem;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem; font-weight: 800; color: white; letter-spacing: -1px;
+  }
+  .logo h1 { font-size: 1.6rem; font-weight: 700; color: var(--text); }
+  .logo p { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+  .logo .school-badge {
+    display: inline-block; margin-top: 0.5rem;
+    background: rgba(37,99,235,0.12); border: 1px solid rgba(37,99,235,0.3);
+    color: #93c5fd; font-size: 0.7rem; font-weight: 600;
+    padding: 0.2rem 0.6rem; border-radius: 20px; letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .form-group { margin-bottom: 1.25rem; }
+  label {
+    display: block; font-size: 0.75rem; font-weight: 600; color: var(--muted);
+    margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  input[type="text"], input[type="password"] {
+    width: 100%; padding: 0.75rem 1rem;
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 0.95rem;
+    outline: none; transition: border-color .2s;
+  }
+  input[type="text"]:focus, input[type="password"]:focus {
+    border-color: var(--accent);
+  }
+  .btn {
+    width: 100%; padding: 0.85rem;
+    background: linear-gradient(135deg, #2563eb, #4f46e5);
+    color: #fff; border: none; border-radius: 8px;
+    font-size: 1rem; font-weight: 600; cursor: pointer;
+    transition: opacity .2s; margin-top: 0.5rem;
+  }
+  .btn:hover { opacity: 0.88; }
+  .errors {
+    background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem;
+    color: #fca5a5; font-size: 0.85rem;
+  }
+  .footer { text-align: center; margin-top: 1.5rem; font-size: 0.75rem; color: var(--muted); }
+  .footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">SP</div>
+    <h1>SecPresence</h1>
+    <p>Système de présence par reconnaissance faciale</p>
+    <span class="school-badge">École Secondaire</span>
+  </div>
+
+  {% if form.non_field_errors %}
+  <div class="errors">
+    {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+  </div>
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+    <div class="form-group">
+      <label for="id_username">Identifiant</label>
+      <input type="text" name="username" id="id_username" autocomplete="username" autofocus
+             placeholder="admin" value="{{ form.username.value|default:'' }}">
+      {% if form.username.errors %}<span style="color:var(--danger); font-size:0.75rem;">{{ form.username.errors|join:", " }}</span>{% endif %}
+    </div>
+
+    <div class="form-group">
+      <label for="id_password">Mot de passe</label>
+      <input type="password" name="password" id="id_password" autocomplete="current-password"
+             placeholder="••••••••">
+      {% if form.password.errors %}<span style="color:var(--danger); font-size:0.75rem;">{{ form.password.errors|join:", " }}</span>{% endif %}
+    </div>
+
+    <button class="btn" type="submit">Se connecter</button>
+  </form>
+
+  <div class="footer">
+    Administration &rarr; <a href="/facial/admin/">Panel admin</a>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Journal d'activité système{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+    <div>
+        <h1 class="page-title">&#128221; Journal d'activité système</h1>
+        <p class="page-subtitle">Toutes les actions importantes enregistrées automatiquement</p>
+    </div>
+    <div style="font-size:0.8rem; color:var(--muted);">{{ total }} entrée(s)</div>
+</div>
+
+<!-- KPIs rapides -->
+<div style="display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem;">
+    <div class="stat-card" style="border-left:3px solid var(--success);">
+        <div class="stat-value" style="color:var(--success); font-size:1.2rem;">{{ kpi.logins }}</div>
+        <div class="stat-label">Connexions (7j)</div>
+    </div>
+    <div class="stat-card" style="border-left:3px solid var(--primary);">
+        <div class="stat-value" style="font-size:1.2rem;">{{ kpi.creates }}</div>
+        <div class="stat-label">Créations (7j)</div>
+    </div>
+    <div class="stat-card" style="border-left:3px solid var(--warning);">
+        <div class="stat-value" style="color:var(--warning); font-size:1.2rem;">{{ kpi.trains }}</div>
+        <div class="stat-label">Entrainements (7j)</div>
+    </div>
+    <div class="stat-card" style="border-left:3px solid var(--danger);">
+        <div class="stat-value" style="color:var(--danger); font-size:1.2rem;">{{ kpi.errors }}</div>
+        <div class="stat-label">Echecs (7j)</div>
+    </div>
+</div>
+
+<!-- Filtres -->
+<div class="card" style="margin-bottom:1.25rem;">
+    <form method="get" style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:flex-end;">
+        <div>
+            <label class="form-label">Action</label>
+            <select name="action" class="form-input" style="min-width:140px;">
+                <option value="">— Toutes —</option>
+                {% for val, label in action_choices %}
+                <option value="{{ val }}" {% if action_filter == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="form-label">Type objet</label>
+            <select name="obj" class="form-input" style="min-width:140px;">
+                <option value="">— Tous —</option>
+                {% for val, label in obj_choices %}
+                <option value="{{ val }}" {% if obj_filter == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="form-label">Statut</label>
+            <select name="success" class="form-input" style="min-width:120px;">
+                <option value="">— Tous —</option>
+                <option value="1" {% if success_filter == "1" %}selected{% endif %}>Succes</option>
+                <option value="0" {% if success_filter == "0" %}selected{% endif %}>Echec</option>
+            </select>
+        </div>
+        <div style="flex:1; min-width:160px;">
+            <label class="form-label">Utilisateur</label>
+            <input type="text" name="user" value="{{ user_filter }}" class="form-input" placeholder="Nom d'utilisateur...">
+        </div>
+        <button type="submit" class="btn btn-primary">&#128269; Filtrer</button>
+        <a href="{% url 'attendance:system_log' %}" class="btn btn-secondary">Reinitialiser</a>
+    </form>
+</div>
+
+<!-- Table du journal -->
+{% if logs %}
+<div class="card" style="padding:0;">
+    <div style="overflow-x:auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th style="width:150px;">Date/Heure</th>
+                    <th>Utilisateur</th>
+                    <th>Action</th>
+                    <th>Objet</th>
+                    <th>Description</th>
+                    <th>Détails</th>
+                    <th>IP</th>
+                    <th style="width:60px;">Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr style="{% if not log.success %}background:rgba(239,68,68,0.04);{% endif %}">
+                    <td style="font-size:0.75rem; font-family:monospace; white-space:nowrap;">
+                        <div>{{ log.created_at|date:"d/m/Y" }}</div>
+                        <div style="color:var(--muted);">{{ log.created_at|time:"H:i:s" }}</div>
+                    </td>
+                    <td>
+                        <div style="font-weight:600; font-size:0.83rem;">{{ log.user }}</div>
+                    </td>
+                    <td>
+                        <span class="badge
+                            {% if log.action == 'login' %}badge-green
+                            {% elif log.action == 'logout' %}badge-muted
+                            {% elif log.action == 'create' %}badge-blue
+                            {% elif log.action == 'update' %}badge-yellow
+                            {% elif log.action == 'delete' %}badge-red
+                            {% elif log.action == 'train' %}badge-blue
+                            {% elif log.action == 'config' %}badge-yellow
+                            {% elif log.action == 'error' %}badge-red
+                            {% else %}badge-muted{% endif %}"
+                            style="font-size:0.7rem;">
+                            {{ log.get_action_display }}
+                        </span>
+                    </td>
+                    <td style="font-size:0.78rem; color:var(--muted);">
+                        {% if log.object_type %}{{ log.get_object_type_display }}{% else %}—{% endif %}
+                    </td>
+                    <td style="font-size:0.82rem; font-weight:500; max-width:200px;">
+                        {{ log.object_repr|default:"—"|truncatechars:60 }}
+                    </td>
+                    <td style="font-size:0.75rem; color:var(--muted); max-width:250px;">
+                        {{ log.details|truncatechars:80 }}
+                    </td>
+                    <td style="font-size:0.72rem; color:var(--muted); font-family:monospace;">
+                        {{ log.ip_address|default:"—" }}
+                    </td>
+                    <td style="text-align:center;">
+                        {% if log.success %}
+                        <span style="color:var(--success); font-size:1rem;" title="Succès">&#10003;</span>
+                        {% else %}
+                        <span style="color:var(--danger); font-size:1rem;" title="Echec">&#10007;</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <div style="display:flex; gap:0.5rem; justify-content:center; padding:1rem; flex-wrap:wrap;">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}&action={{ action_filter }}&obj={{ obj_filter }}&success={{ success_filter }}&user={{ user_filter }}"
+           class="btn btn-secondary">&#8592; Prec</a>
+        {% endif %}
+        <span style="padding:0.5rem 0.75rem; color:var(--muted); font-size:0.85rem;">
+            Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+        </span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}&action={{ action_filter }}&obj={{ obj_filter }}&success={{ success_filter }}&user={{ user_filter }}"
+           class="btn btn-secondary">Suiv &#8594;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% else %}
+<div class="card" style="text-align:center; padding:3rem 1rem;">
+    <div style="font-size:3rem; margin-bottom:1rem;">&#128221;</div>
+    <p style="color:var(--muted);">Aucune entrée dans le journal avec ces filtres.</p>
+    {% if not action_filter and not obj_filter and not user_filter %}
+    <p style="color:var(--muted); font-size:0.82rem; margin-top:0.5rem;">
+        Le journal se remplira automatiquement à mesure que des actions sont effectuées.
+    </p>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

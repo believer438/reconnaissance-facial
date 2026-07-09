@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Horaires — UniPresence{% endblock %}
+{% block page_title %}Horaires hebdomadaires{% endblock %}
+
+{% block content %}
+
+<div class="grid-2" style="align-items:start;">
+
+    <div class="panel">
+        <div class="panel-head">
+            <h3>Ajouter un horaire</h3>
+        </div>
+        <div class="panel-body">
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="form-row" style="grid-template-columns:1fr 1fr;">
+                    <div class="form-group">
+                        <label for="id_classe">Classe *</label>
+                        {{ form.classe }}
+                        {% if form.classe.errors %}<ul class="errorlist">{% for e in form.classe.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_course">Cours *</label>
+                        {{ form.course }}
+                        {% if form.course.errors %}<ul class="errorlist">{% for e in form.course.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="id_jour_semaine">Jour *</label>
+                        {{ form.jour_semaine }}
+                    </div>
+                </div>
+
+                <div class="form-row" style="grid-template-columns:1fr 1fr 1fr;">
+                    <div class="form-group">
+                        <label for="id_heure_debut">Heure debut *</label>
+                        {{ form.heure_debut }}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_heure_fin">Heure fin *</label>
+                        {{ form.heure_fin }}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_tolerance_retard_minutes">Tolerance (min)</label>
+                        {{ form.tolerance_retard_minutes }}
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="id_salle">Salle</label>
+                        {{ form.salle }}
+                    </div>
+                </div>
+
+                <button class="button primary" type="submit">Enregistrer l'horaire</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-head">
+            <h3>Horaires configures ({{ schedules|length }})</h3>
+        </div>
+        {% if schedules %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Classe</th>
+                        <th>Cours</th>
+                        <th>Jour</th>
+                        <th>Horaire</th>
+                        <th>Tolerance</th>
+                        <th>Salle</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for schedule in schedules %}
+                    <tr>
+                        <td><strong>{{ schedule.classe }}</strong></td>
+                        <td>
+                            <span style="font-weight:600;">{{ schedule.course.code }}</span>
+                            <div style="font-size:0.72rem; color:var(--muted);">{{ schedule.course.name|truncatechars:30 }}</div>
+                        </td>
+                        <td>{{ schedule.jour_display }}</td>
+                        <td style="font-family:monospace;">
+                            {{ schedule.heure_debut|time:"H:i" }} – {{ schedule.heure_fin|time:"H:i" }}
+                        </td>
+                        <td style="color:var(--muted);">{{ schedule.tolerance_retard_minutes }} min</td>
+                        <td style="color:var(--muted); font-size:0.8rem;">{{ schedule.salle|default:"—" }}</td>
+                        <td style="text-align:right;">
+                            <form method="post" action="{% url 'attendance:schedule_delete' schedule.id %}" style="display:inline;" onsubmit="return confirm('Supprimer cet horaire ?');">
+                                {% csrf_token %}
+                                <button type="submit" class="button secondary sm" style="color:var(--danger); padding:0.2rem 0.5rem;">Suppr.</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            Aucun horaire configure.<br>
+            Creez d'abord vos classes et cours, puis ajoutez les horaires.
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<div class="panel" style="margin-top:1.5rem; padding:1rem 1.25rem;">
+    <div style="font-size:0.82rem; color:var(--muted);">
+        <strong style="color:var(--text);">Logique temporelle :</strong>
+        Arrive avant (debut + tolerance) → <span style="color:#22c55e;">PRESENT</span> &nbsp;|&nbsp;
+        Arrive apres la tolerance mais avant la fin → <span style="color:#eab308;">RETARD</span> &nbsp;|&nbsp;
+        Arrive apres la fin du cours → <span style="color:#ef4444;">REFUSE</span>
+    </div>
+</div>
+
+{% endblock %}

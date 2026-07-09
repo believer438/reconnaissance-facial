@@ -1,0 +1,706 @@
+{% extends 'base.html' %}
+
+{% block title %}Live — {{ camera.name }} — SecPresence{% endblock %}
+{% block page_title %}
+<span style="display:flex;align-items:center;gap:0.5rem;">
+    <span class="cam-dot off" id="cam-dot" style="width:9px;height:9px;border-radius:50%;background:#374151;flex-shrink:0;transition:background 0.3s;"></span>
+    {{ camera.name }}{% if camera.location %} · {{ camera.location }}{% endif %}
+</span>
+{% endblock %}
+
+{% block topbar_actions %}
+<select id="sel-classe" style="font-size:0.78rem;padding:0.25rem 0.5rem;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;max-width:200px;">
+    <option value="">— Toutes classes —</option>
+    {% for c in classes %}<option value="{{ c.id }}">{{ c }}</option>{% endfor %}
+</select>
+<select id="sel-interval" style="font-size:0.78rem;padding:0.25rem 0.5rem;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;">
+    <option value="400">Analyse : 0.4s</option>
+    <option value="800" selected>Analyse : 0.8s</option>
+    <option value="1500">Analyse : 1.5s</option>
+    <option value="2500">Analyse : 2.5s</option>
+</select>
+<button id="btn-debug" onclick="toggleDebug()" title="Afficher les scores de similarité bruts"
+    style="font-size:0.72rem;padding:0.2rem 0.7rem;border-radius:4px;border:1px solid rgba(234,179,8,.4);background:transparent;color:#eab308;cursor:pointer;font-weight:600;transition:all .2s;">
+    🔍 Debug
+</button>
+<span id="status-pill" style="font-size:0.72rem;padding:0.2rem 0.6rem;border-radius:20px;background:var(--border);color:var(--muted);font-weight:600;transition:all 0.3s;">Connexion...</span>
+{% endblock %}
+
+{% block content %}
+<style>
+@keyframes dotpulse{0%,100%{opacity:1}50%{opacity:.3}}
+.live-layout{display:grid;grid-template-columns:1fr 300px;gap:1rem;height:calc(100vh - 44px - 2.5rem);}
+.live-video-wrap{position:relative;background:#080d14;border:1px solid var(--border);overflow:hidden;display:flex;align-items:center;justify-content:center;border-radius:4px;}
+.live-video-wrap video{width:100%;height:100%;object-fit:contain;display:block;}
+.live-video-wrap canvas.overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;}
+.live-err{position:absolute;bottom:56px;left:50%;transform:translateX(-50%);background:rgba(220,38,38,.92);color:#fff;font-size:.78rem;padding:.4rem 1rem;border-radius:4px;display:none;z-index:20;max-width:90%;text-align:center;}
+.frames-counter{position:absolute;bottom:10px;right:12px;font-size:.65rem;color:rgba(255,255,255,.3);font-family:monospace;z-index:5;pointer-events:none;}
+.monitoring-banner{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(37,99,235,.85);color:#fff;font-size:.72rem;padding:.3rem .8rem;border-radius:20px;z-index:10;display:none;white-space:nowrap;}
+.live-side{display:flex;flex-direction:column;gap:.75rem;min-height:0;overflow-y:auto;}
+.side-panel{background:var(--surface);border:1px solid var(--border);border-radius:4px;}
+.side-panel-head{padding:.5rem .75rem;border-bottom:1px solid var(--border);font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:flex;align-items:center;justify-content:space-between;}
+.result-item{display:flex;align-items:center;gap:.5rem;padding:.45rem .75rem;border-bottom:1px solid var(--border);font-size:.8rem;}
+.result-item:last-child{border-bottom:none;}
+.result-icon{width:24px;height:24px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:#fff;border-radius:3px;}
+.result-icon.ok{background:#16a34a;}.result-icon.warn{background:#f59e0b;}.result-icon.unk{background:#dc2626;}
+.result-info{flex:1;min-width:0;}
+.result-name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.result-meta{font-size:.7rem;color:var(--muted);}
+.result-attendance{font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.03em;margin-top:.1rem;}
+.result-saved{font-size:.67rem;color:#16a34a;font-weight:700;}
+.result-wait{padding:1rem .75rem;font-size:.8rem;color:var(--muted);text-align:center;}
+.log-item{padding:.3rem .75rem;border-bottom:1px solid var(--border);font-size:.7rem;color:var(--muted);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.log-item:last-child{border-bottom:none;}
+.log-item.ok{color:#16a34a;}.log-item.err{color:#dc2626;}.log-item.warn{color:#d97706;}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;padding:.6rem;text-align:center;}
+.stat-box .n{font-size:1.35rem;font-weight:700;}.stat-box .l{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+/* ── Debug panel ── */
+.debug-panel{background:#0d1117;border:1px solid rgba(234,179,8,.3);border-radius:4px;display:none;}
+.debug-panel.visible{display:block;}
+.debug-row{display:flex;align-items:center;gap:.4rem;padding:.3rem .6rem;border-bottom:1px solid rgba(255,255,255,.05);font-family:monospace;font-size:.68rem;}
+.debug-row:last-child{border-bottom:none;}
+.debug-label{color:#6b7280;flex-shrink:0;width:80px;}
+.debug-bar-wrap{flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;}
+.debug-bar{height:100%;border-radius:3px;transition:width .3s;}
+.debug-val{color:#e2e8f0;font-weight:700;min-width:36px;text-align:right;flex-shrink:0;}
+.debug-seuil-line{padding:.25rem .6rem;font-size:.65rem;color:#eab308;font-family:monospace;border-bottom:1px solid rgba(255,255,255,.05);}
+.debug-status{padding:.3rem .6rem;font-size:.7rem;font-weight:700;text-align:center;border-radius:0 0 3px 3px;}
+</style>
+
+{% if camera.camera_type == 'webcam' %}
+<div class="live-layout">
+    <div class="live-video-wrap">
+        <div class="monitoring-banner" id="monitor-banner">🔵 Moniteur global actif en arrière-plan</div>
+        <video id="video" autoplay playsinline muted></video>
+        <canvas class="overlay" id="overlay"></canvas>
+        <div class="live-err" id="errbar"></div>
+        <div class="frames-counter" id="frame-count">0 f</div>
+    </div>
+
+    <div class="live-side">
+        <div class="side-panel">
+            <div class="side-panel-head">Détections <span id="det-count" style="background:var(--border);padding:1px 6px;border-radius:10px;">0</span></div>
+            <div id="results-list"><div class="result-wait">Initialisation...</div></div>
+        </div>
+
+        <div class="debug-panel" id="debug-panel">
+            <div class="side-panel-head" style="border-bottom:1px solid rgba(234,179,8,.2);">
+                <span style="color:#eab308;">🔍 Scores de similarité</span>
+                <a href="{% url 'attendance:diagnostic' %}" style="font-size:.62rem;color:#eab308;text-decoration:none;opacity:.7;" title="Ouvrir page diagnostic complète">→ Diagnostic ↗</a>
+            </div>
+            <div id="debug-content">
+                <div style="padding:.6rem;font-size:.7rem;color:#4b5563;text-align:center;">En attente d'une détection…</div>
+            </div>
+        </div>
+
+        <div class="side-panel">
+            <div class="side-panel-head">Journal</div>
+            <div id="log-list" style="max-height:180px;overflow-y:auto;">
+                <div class="log-item">Démarrage automatique...</div>
+            </div>
+        </div>
+        <div class="side-panel">
+            <div class="side-panel-head">Statistiques de session</div>
+            <div class="stat-grid">
+                <div class="stat-box"><div class="n" id="s-ok" style="color:#16a34a">0</div><div class="l">Reconnus</div></div>
+                <div class="stat-box"><div class="n" id="s-unk" style="color:#dc2626">0</div><div class="l">Inconnus</div></div>
+                <div class="stat-box"><div class="n" id="s-saved" style="color:#2563eb">0</div><div class="l">Présences</div></div>
+                <div class="stat-box"><div class="n" id="s-frames">0</div><div class="l">Frames</div></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="side-panel" style="max-width:480px;border-radius:4px;">
+    <div class="side-panel-head">Caméra non disponible</div>
+    <div style="padding:2rem;text-align:center;color:var(--muted);">
+        <div style="font-size:2.5rem;opacity:0.2;">📷</div>
+        <p style="margin:.5rem 0 0;font-size:.85rem;">Ce type de caméra ({{ camera.get_camera_type_display }}) nécessite un serveur local.<br>Utilisez le type <strong>Webcam navigateur</strong>.</p>
+        <a href="{% url 'attendance:camera_list' %}" class="button secondary" style="margin-top:1rem;">← Retour aux caméras</a>
+    </div>
+</div>
+{% endif %}
+
+<canvas id="cap" style="display:none;"></canvas>
+
+<script>
+(function(){
+'use strict';
+
+const CAM_ID   = {{ camera.id }};
+const REC_URL  = "{% url 'attendance:api_recognize_frame' %}";
+const CSRF     = "{{ csrf_token }}";
+const BC       = 'BroadcastChannel' in window ? new BroadcastChannel('sp_live') : null;
+
+const video   = document.getElementById('video');
+const overlay = document.getElementById('overlay');
+const cap     = document.getElementById('cap');
+const dot     = document.getElementById('cam-dot');
+const errbar  = document.getElementById('errbar');
+const fcnt    = document.getElementById('frame-count');
+const pill    = document.getElementById('status-pill');
+
+let stream = null, timer = null, frames = 0;
+let sOk = 0, sUnk = 0, sSaved = 0;
+const markedIds = new Set();
+let debugMode = false;
+let lastThreshold = 72, lastSeuilHaute = 40, lastMarginThreshold = 0, lastEngine = 'sface';
+let _lastSharpness = null;
+
+// ── Persistance des boîtes de détection ──────────────────────────────────────
+// Conserve les derniers résultats pour les afficher entre deux captures.
+// Sans ça, le cadre disparaît pendant toute la durée de l'intervalle (~800ms).
+let _lastBoxResults = [];
+let _lastBoxTime    = 0;
+let _ghostTimer     = null;
+const GHOST_TTL     = 2200;   // ms avant que les boîtes "fantômes" s'effacent
+
+// Estimation rapide de la netteté sur le patch central du frame (≈ variance Laplacien)
+function _estimateSharpness(ctx2d, W, H) {
+    const pw = Math.min(160, W >> 1), ph = Math.min(120, H >> 1);
+    const ox = (W - pw) >> 1, oy = (H - ph) >> 1;
+    const d = ctx2d.getImageData(ox, oy, pw, ph).data;
+    let sum = 0, sum2 = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+        const v = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+        sum += v; sum2 += v * v; n++;
+    }
+    return sum2 / n - (sum / n) ** 2; // variance
+}
+
+// ── Mode debug toggle ─────────────────────────────────────────────────────────
+function toggleDebug() {
+    debugMode = !debugMode;
+    const panel = document.getElementById('debug-panel');
+    const btn   = document.getElementById('btn-debug');
+    if (panel) panel.classList.toggle('visible', debugMode);
+    if (btn) {
+        btn.style.background = debugMode ? 'rgba(234,179,8,.15)' : 'transparent';
+        btn.style.borderColor = debugMode ? '#eab308' : 'rgba(234,179,8,.4)';
+        btn.textContent = debugMode ? '🔍 Debug ON' : '🔍 Debug';
+    }
+}
+
+function barColor(val) {
+    if (val >= 60) return '#16a34a';
+    if (val >= 28) return '#f59e0b';
+    return '#dc2626';
+}
+
+function updateDebugPanel(results, threshold, seuilHaute, facesDetected, marginThreshold, engine) {
+    const el = document.getElementById('debug-content');
+    if (!el || !debugMode) return;
+    if (!results || !results.length) {
+        const fd = typeof facesDetected === 'number' ? facesDetected : 0;
+        el.innerHTML = `<div style="padding:.6rem;font-size:.7rem;color:#4b5563;text-align:center;">
+            ${fd === 0
+                ? '<span style="color:#dc2626;font-weight:600;">⚠ Aucun visage détecté</span><br><small>Rapprochez-vous · éclairez bien · regardez la caméra</small>'
+                : `<span style="color:#f59e0b;font-weight:600;">${fd} visage(s) trouvé(s) — traitement en cours</span>`
+            }
+        </div>`;
+        return;
+    }
+    const faces = results.filter(r => typeof r.debug_chi2 === 'number');
+    if (!faces.length) {
+        el.innerHTML = '<div style="padding:.6rem;font-size:.7rem;color:#4b5563;text-align:center;">Scores non disponibles</div>';
+        return;
+    }
+    const lines = faces.map((r, i) => {
+        const chi2 = r.debug_chi2 || 0;
+        const cos  = r.debug_cos  || 0;
+        const comb = r.debug_combined || r.confidence || 0;
+        const dist = r.debug_distance || 0;
+        const margin = typeof r.debug_margin === 'number' ? r.debug_margin : 0;
+        const reason = r.debug_reason || '';
+        const isSface = (r.debug_engine || engine) === 'sface';
+        const marginPct = Math.max(0, Math.min(100, margin * 100));
+        const marginNeedPct = Math.max(0, Math.min(100, (marginThreshold || 0) * 100));
+        const recog        = r.status === 'recognized';
+        const lowConf      = r.status === 'low_confidence';
+        const alreadyMarked = r.status === 'already_marked';
+        const refused      = r.status === 'refused';
+        const tooEarly     = r.status === 'too_early';
+        let statusTxt, statusCol;
+        if (recog)               { statusTxt = '✓ RECONNU';               statusCol = '#16a34a'; }
+        else if (lowConf)        { statusTxt = '⚠ FAIBLE CONF.';          statusCol = '#f59e0b'; }
+        else if (alreadyMarked)  { statusTxt = '✓ DÉJÀ MARQUÉ';           statusCol = '#2563eb'; }
+        else if (refused)        { statusTxt = '✗ REFUSÉ (hors horaire)'; statusCol = '#7c3aed'; }
+        else if (tooEarly)       { statusTxt = '⚠ TROP TÔT';              statusCol = '#f59e0b'; }
+        else                     { statusTxt = '✗ INCONNU';               statusCol = '#dc2626'; }
+        return `
+<div class="debug-seuil-line">Visage ${i+1}${r.name && r.name !== 'Inconnu' ? ' — ' + r.name : ''}</div>
+<div class="debug-row">
+  <span class="debug-label">${isSface ? 'Meilleur' : 'Chi² LBP'}</span>
+  <div class="debug-bar-wrap"><div class="debug-bar" style="width:${chi2}%;background:${barColor(chi2)};"></div></div>
+  <span class="debug-val" style="color:${barColor(chi2)}">${chi2.toFixed(1)}%</span>
+</div>
+<div class="debug-row">
+  <span class="debug-label">Cosinus</span>
+  <div class="debug-bar-wrap"><div class="debug-bar" style="width:${cos}%;background:${barColor(cos)};"></div></div>
+  <span class="debug-val" style="color:${barColor(cos)}">${cos.toFixed(1)}%</span>
+</div>
+<div class="debug-row">
+  <span class="debug-label">Combiné</span>
+  <div class="debug-bar-wrap">
+    <div class="debug-bar" style="width:${comb}%;background:${barColor(comb)};"></div>
+    <div style="position:absolute;left:${threshold}%;top:0;width:1px;height:100%;background:#eab308;opacity:.6;"></div>
+  </div>
+  <span class="debug-val" style="color:${barColor(comb)}">${comb.toFixed(1)}%</span>
+</div>
+${isSface ? `<div class="debug-row">
+  <span class="debug-label">Marge</span>
+  <div class="debug-bar-wrap">
+    <div class="debug-bar" style="width:${marginPct}%;background:${margin >= (marginThreshold || 0) ? '#16a34a' : '#dc2626'};"></div>
+    <div style="position:absolute;left:${marginNeedPct}%;top:0;width:1px;height:100%;background:#eab308;opacity:.6;"></div>
+  </div>
+  <span class="debug-val" style="color:${margin >= (marginThreshold || 0) ? '#16a34a' : '#dc2626'}">${margin.toFixed(3)}</span>
+</div>` : ''}
+<div class="debug-seuil-line">${isSface ? `Moteur SFace · seuil auto: ${threshold}% · marge min: ${(marginThreshold || 0).toFixed(2)}` : `Seuil reconnu: ${threshold}% · Seuil haute conf.: ${100-seuilHaute}%`}</div>
+${reason ? `<div class="debug-seuil-line" style="color:#fca5a5;">${reason}</div>` : ''}
+<div class="debug-status" style="background:${statusCol}22;color:${statusCol}">${statusTxt}${isSface ? '' : ` · dist=${dist.toFixed(1)}`}</div>`;
+    });
+    el.innerHTML = lines.join('');
+}
+
+// ── Check si le moniteur global est déjà actif ──────────────────────────────
+if (localStorage.getItem('sp_monitoring') === '1') {
+    const banner = document.getElementById('monitor-banner');
+    if (banner) banner.style.display = 'block';
+}
+
+BC && BC.addEventListener('message', e => {
+    const banner = document.getElementById('monitor-banner');
+    if (!banner) return;
+    if (e.data === 'monitor_started') banner.style.display = 'block';
+    if (e.data === 'monitor_stopped') banner.style.display = 'none';
+});
+
+// ── Helpers UI ───────────────────────────────────────────────────────────────
+function setPill(txt, bg, color) {
+    if (!pill) return;
+    pill.textContent = txt;
+    pill.style.background = bg || 'var(--border)';
+    pill.style.color = color || 'var(--muted)';
+}
+function showErr(msg) {
+    if (!errbar) return;
+    errbar.style.display = msg ? 'block' : 'none';
+    errbar.textContent = msg || '';
+}
+function addLog(msg, cls) {
+    const el = document.getElementById('log-list');
+    if (!el) return;
+    const ts = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const d = document.createElement('div');
+    d.className = `log-item${cls ? ' '+cls : ''}`;
+    d.textContent = `[${ts}] ${msg}`;
+    el.insertBefore(d, el.firstChild);
+    while (el.children.length > 50) el.removeChild(el.lastChild);
+}
+function setDot(active) {
+    if (!dot) return;
+    dot.style.background = active ? '#16a34a' : '#374151';
+    dot.style.animation = active ? 'dotpulse 1.5s infinite' : '';
+}
+
+// ── Ouverture caméra avec fallback progressif ───────────────────────────────
+async function openCamera() {
+    // Priorité 640×480 : résolution optimale pour la détection faciale
+    // 1280×720 cause des échecs systématiques de détection (Haar cascade trop lent)
+    const sets = [
+        { video: { width: { ideal: 640 },  height: { ideal: 480 } } },
+        { video: { width: { exact: 640 },  height: { exact: 480 } } },
+        { video: { width: { max:   800 } } },
+        { video: true },
+    ];
+    let lastErr = null;
+    for (const c of sets) {
+        try {
+            return await navigator.mediaDevices.getUserMedia(c);
+        } catch(e) {
+            lastErr = e;
+            if (e.name === 'NotAllowedError' || e.name === 'NotFoundError') break;
+        }
+    }
+    throw lastErr || new Error("Impossible d'accéder à la caméra");
+}
+
+// ── Démarrage automatique ────────────────────────────────────────────────────
+async function startCam() {
+    setPill('Connexion...', 'rgba(234,179,8,.15)', '#eab308');
+    addLog('Connexion à la caméra...');
+
+    try {
+        stream = await openCamera();
+    } catch(e) {
+        let msg;
+        if (e.name === 'NotAllowedError') {
+            msg = 'Permission refusée. Autorisez la caméra dans votre navigateur, puis rechargez.';
+        } else if (e.name === 'NotFoundError') {
+            msg = 'Aucune caméra détectée sur cet appareil.';
+        } else if (window.self !== window.top) {
+            // L'app tourne dans une iframe (ex: aperçu Replit Canvas) — getUserMedia est bloqué
+            msg = '⚠ La caméra ne fonctionne pas dans un aperçu embarqué. Ouvrez l\'app directement dans un onglet : cliquez sur "Ouvrir dans un nouvel onglet" en haut de l\'aperçu.';
+        } else {
+            msg = `Erreur caméra : ${e.message}`;
+        }
+        showErr(msg);
+        setPill('Erreur caméra', 'rgba(220,38,38,.15)', '#dc2626');
+        addLog(msg, 'err');
+        return;
+    }
+
+    video.srcObject = stream;
+    try { await video.play(); } catch(e) {}
+
+    setDot(true);
+    setPill('● Actif', 'rgba(22,163,74,.15)', '#16a34a');
+    addLog('Caméra connectée — reconnaissance en cours', 'ok');
+    showErr('');
+
+    localStorage.setItem('sp_live_active', String(CAM_ID));
+    BC && BC.postMessage('live_started');
+
+    const ms = parseInt(document.getElementById('sel-interval').value, 10) || 1500;
+    timer = setInterval(captureFrame, ms);
+
+    document.getElementById('sel-interval').addEventListener('change', function() {
+        if (timer) { clearInterval(timer); }
+        timer = setInterval(captureFrame, parseInt(this.value, 10) || 1500);
+    });
+}
+
+// ── Capture & envoi ──────────────────────────────────────────────────────────
+async function captureFrame() {
+    // Garde-fou : si on a navigué ailleurs (PJAX), on stoppe proprement
+    if (!document.getElementById('cap')) { clearInterval(timer); timer = null; return; }
+    if (!video || video.readyState < 2 || !video.videoWidth) return;
+    const W = video.videoWidth, H = video.videoHeight;
+    cap.width = W; cap.height = H;
+    const ctx2d = cap.getContext('2d');
+    ctx2d.drawImage(video, 0, 0, W, H);
+
+    // JPEG 95% : quasi-lossless, réduit fortement les artefacts de compression
+    // qui dégradent les histogrammes LBP (idem conditions photo uploadée)
+    const b64 = cap.toDataURL('image/jpeg', 0.95);
+
+    // Validation : si le canvas est vide/taché, toDataURL retourne "data:,"
+    if (!b64 || b64.length < 100 || !b64.includes(',')) return;
+    const selClasse = document.getElementById('sel-classe');
+    const classeId = selClasse ? selClasse.value : '';
+
+    let data;
+    try {
+        const r = await fetch(REC_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ image: b64, camera_id: String(CAM_ID), classe_id: classeId }),
+        });
+        data = await r.json();
+    } catch(e) {
+        showErr('Erreur réseau');
+        addLog('Erreur réseau : ' + e.message, 'err');
+        return;
+    }
+
+    showErr('');
+    frames++;
+    if (fcnt) fcnt.textContent = `${frames} f`;
+    const sFramesEl = document.getElementById('s-frames');
+    if (sFramesEl) sFramesEl.textContent = frames;
+
+    if (data.error && !data.results) {
+        addLog('⚠ ' + data.error, 'warn');
+        return;
+    }
+
+    const results      = data.results || [];
+    const saved        = data.saved   || 0;
+    const facesDetected = typeof data.faces_detected === 'number' ? data.faces_detected : results.length;
+    if (data.debug_threshold) lastThreshold = data.debug_threshold;
+    if (data.debug_seuil_haute) lastSeuilHaute = data.debug_seuil_haute;
+    if (typeof data.debug_margin_threshold === 'number') lastMarginThreshold = data.debug_margin_threshold;
+    if (data.debug_engine) lastEngine = data.debug_engine;
+
+    drawOverlay(results, W, H);
+    updateResults(results, saved);
+    updateDebugPanel(results, lastThreshold, lastSeuilHaute, facesDetected, lastMarginThreshold, lastEngine);
+
+    const ok  = results.filter(r => isKnownStatus(r.status)).length;
+    const unk = results.filter(r => r.status === 'unknown').length;
+    if (ok)  sOk  += ok;
+    if (unk) sUnk += unk;
+    if (saved) {
+        sSaved += saved;
+        const sSavedEl = document.getElementById('s-saved');
+        if (sSavedEl) sSavedEl.textContent = sSaved;
+        results.filter(r => isKnownStatus(r.status) && !markedIds.has(r.student_code)).forEach(r => {
+            markedIds.add(r.student_code);
+            addLog(`✓ ${attendanceLabel(r)} : ${r.name}`, attendanceTone(r) === 'warn' ? 'warn' : 'ok');
+        });
+    }
+    const sOkEl  = document.getElementById('s-ok');
+    const sUnkEl = document.getElementById('s-unk');
+    if (sOkEl)  sOkEl.textContent  = sOk;
+    if (sUnkEl) sUnkEl.textContent = sUnk;
+
+    if (results.length > 0) {
+        const names = results.map(r => isKnownStatus(r.status) ? `${r.name} (${attendanceLabel(r)})` : '?').join(', ');
+        const hasWarn = results.some(r => attendanceTone(r) === 'warn');
+        setPill(`● ${names}`, hasWarn ? 'rgba(245,158,11,.15)' : 'rgba(22,163,74,.15)', hasWarn ? '#f59e0b' : '#16a34a');
+    } else {
+        setPill('● Actif', 'rgba(22,163,74,.15)', '#16a34a');
+    }
+    const detCountEl = document.getElementById('det-count');
+    if (detCountEl) detCountEl.textContent = results.length;
+}
+
+// ── Calcule la zone réelle du video dans le conteneur (object-fit:contain) ──
+function getVideoDisplayRect() {
+    const cw = overlay.offsetWidth  || overlay.parentElement.offsetWidth;
+    const ch = overlay.offsetHeight || overlay.parentElement.offsetHeight;
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    if (!vw || !vh) return { x: 0, y: 0, w: cw, h: ch };
+    const videoAR = vw / vh;
+    const containerAR = cw / ch;
+    let rw, rh;
+    if (videoAR > containerAR) {
+        // Bandes noires haut/bas (letterbox)
+        rw = cw;
+        rh = cw / videoAR;
+    } else {
+        // Bandes noires gauche/droite (pillarbox)
+        rh = ch;
+        rw = ch * videoAR;
+    }
+    return { x: (cw - rw) / 2, y: (ch - rh) / 2, w: rw, h: rh };
+}
+
+// ── Overlay dessin ───────────────────────────────────────────────────────────
+function isKnownStatus(status) {
+    return ['recognized', 'already_marked', 'present', 'retard', 'excuse'].includes(status);
+}
+
+function attendanceCode(r) {
+    return r.attendance_status || (isKnownStatus(r.status) ? r.status : 'unknown');
+}
+
+function attendanceLabel(r) {
+    const code = attendanceCode(r);
+    const labels = {
+        recognized: 'Présent',
+        already_marked: 'Déjà marqué',
+        present: 'Présent',
+        retard: 'Retard',
+        absent: 'Absent',
+        excuse: 'Excusé',
+        refused: 'Refusé',
+        too_early: 'Trop tôt',
+        not_in_class: 'Hors classe',
+        unknown: 'Inconnu',
+        low_confidence: 'Incertain'
+    };
+    return r.attendance_label || labels[code] || labels[r.status] || 'Inconnu';
+}
+
+function attendanceColor(r) {
+    const code = attendanceCode(r);
+    if (code === 'present' || code === 'recognized' || code === 'excuse') return '#16a34a';
+    if (code === 'retard' || code === 'already_marked' || r.status === 'low_confidence' || r.status === 'too_early') return '#f59e0b';
+    if (code === 'refused' || r.status === 'refused') return '#7c3aed';
+    return '#dc2626';
+}
+
+function attendanceTone(r) {
+    const code = attendanceCode(r);
+    if (code === 'retard' || code === 'already_marked' || r.status === 'low_confidence' || r.status === 'too_early') return 'warn';
+    if (code === 'present' || code === 'recognized' || code === 'excuse') return 'ok';
+    return 'unk';
+}
+
+function _drawBoxes(ctx, results, vr, alpha) {
+    ctx.globalAlpha = alpha;
+    for (const r of results) {
+        const [bxP, byP, bwP, bhP] = r.bbox;
+        // Convertir pourcentages → pixels dans la zone vidéo réelle
+        const x = vr.x + bxP / 100 * vr.w;
+        const y = vr.y + byP / 100 * vr.h;
+        const w = bwP / 100 * vr.w;
+        const h = bhP / 100 * vr.h;
+
+        // Couleur selon le statut de présence réel, pas seulement le statut technique.
+        let col, label, statusLine;
+        if (isKnownStatus(r.status)) {
+            const conf = r.confidence || 0;
+            col = attendanceColor(r);
+            label = `${r.name}  ${conf}%`;
+            statusLine = attendanceLabel(r);
+        } else if (r.status === 'low_confidence') {
+            col = '#f59e0b';              // orange — identification incertaine
+            label = r.name ? `${r.name} ?  ${r.confidence || 0}%` : 'INCERTAIN';
+            statusLine = 'Incertain';
+        } else if (r.status === 'already_marked') {
+            col = '#2563eb';              // bleu — déjà enregistré aujourd'hui
+            const conf = r.confidence || 0;
+            label = r.name ? `✓ ${r.name}  ${conf}%` : 'DÉJÀ MARQUÉ';
+            statusLine = attendanceLabel(r);
+        } else if (r.status === 'refused') {
+            col = '#7c3aed';              // violet — hors horaire
+            label = r.name ? `${r.name} — refusé` : 'REFUSÉ';
+            statusLine = attendanceLabel(r);
+        } else if (r.status === 'too_early') {
+            col = '#f59e0b';              // orange — trop tôt
+            label = r.name ? `${r.name} — trop tôt` : 'TROP TÔT';
+            statusLine = attendanceLabel(r);
+        } else if (r.status === 'not_in_class') {
+            col = '#f59e0b';              // orange — hors classe
+            label = r.name ? `${r.name} — hors classe` : 'HORS CLASSE';
+            statusLine = attendanceLabel(r);
+        } else {
+            col = '#dc2626';              // rouge — inconnu
+            label = 'INCONNU';
+            statusLine = 'Absent / non reconnu';
+        }
+
+        ctx.strokeStyle = col; ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
+
+        const cs = Math.min(w, h) * 0.2;
+        ctx.lineWidth = 3; ctx.strokeStyle = col;
+        ctx.beginPath();
+        ctx.moveTo(x, y+cs); ctx.lineTo(x, y); ctx.lineTo(x+cs, y);
+        ctx.moveTo(x+w-cs, y); ctx.lineTo(x+w, y); ctx.lineTo(x+w, y+cs);
+        ctx.moveTo(x, y+h-cs); ctx.lineTo(x, y+h); ctx.lineTo(x+cs, y+h);
+        ctx.moveTo(x+w-cs, y+h); ctx.lineTo(x+w, y+h); ctx.lineTo(x+w, y+h-cs);
+        ctx.stroke();
+
+        ctx.font = 'bold 12px "Segoe UI", sans-serif';
+        const debugLine = debugMode && typeof r.debug_chi2 === 'number'
+            ? `χ²=${r.debug_chi2.toFixed(0)}% cos=${r.debug_cos.toFixed(0)}% → ${(r.debug_combined||r.confidence||0).toFixed(0)}%`
+            : null;
+        const labelH = debugLine ? 54 : 38;
+        const statusText = statusLine ? statusLine.toUpperCase() : '';
+        const tw = Math.max(
+            ctx.measureText(label).width + 12,
+            statusText ? ctx.measureText(statusText).width + 12 : 0,
+            debugLine ? ctx.measureText(debugLine).width + 12 : 0
+        );
+        ctx.fillStyle = col;
+        ctx.fillRect(x, y - labelH, tw, labelH);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(label, x + 6, y - (debugLine ? 36 : 22));
+        if (statusText) {
+            ctx.font = 'bold 11px "Segoe UI", sans-serif';
+            ctx.fillStyle = '#fff';
+            ctx.fillText(statusText, x + 6, y - (debugLine ? 21 : 7));
+        }
+        if (debugLine) {
+            ctx.font = '10px monospace';
+            ctx.fillStyle = 'rgba(255,255,255,.8)';
+            ctx.fillText(debugLine, x + 6, y - 6);
+        }
+    }
+    ctx.globalAlpha = 1.0;
+}
+
+function drawOverlay(results, W, H) {
+    if (!overlay) return;
+    overlay.width  = overlay.offsetWidth  || overlay.parentElement.offsetWidth;
+    overlay.height = overlay.offsetHeight || overlay.parentElement.offsetHeight;
+    const ctx = overlay.getContext('2d');
+    ctx.clearRect(0, 0, overlay.width, overlay.height);
+    const vr = getVideoDisplayRect();
+    const now = Date.now();
+
+    if (results.length > 0) {
+        // Résultats frais — mettre à jour le cache et annuler le timer fantôme
+        _lastBoxResults = results;
+        _lastBoxTime    = now;
+        if (_ghostTimer) { clearTimeout(_ghostTimer); _ghostTimer = null; }
+        _drawBoxes(ctx, results, vr, 1.0);
+    } else if (_lastBoxResults.length > 0) {
+        // Pas de nouveau résultat — afficher les dernières boîtes en semi-transparence
+        const age   = now - _lastBoxTime;
+        if (age < GHOST_TTL) {
+            // Fondu progressif : 90% → 30% sur la durée GHOST_TTL
+            const alpha = 0.9 - 0.6 * (age / GHOST_TTL);
+            _drawBoxes(ctx, _lastBoxResults, vr, Math.max(0.3, alpha));
+            // Programmer l'effacement final
+            if (!_ghostTimer) {
+                _ghostTimer = setTimeout(() => {
+                    _lastBoxResults = [];
+                    _ghostTimer = null;
+                    if (overlay) {
+                        const c = overlay.getContext('2d');
+                        c.clearRect(0, 0, overlay.width, overlay.height);
+                    }
+                }, GHOST_TTL - age + 50);
+            }
+        } else {
+            _lastBoxResults = [];
+        }
+    }
+}
+
+// ── Liste résultats ──────────────────────────────────────────────────────────
+function updateResults(results, saved) {
+    const el = document.getElementById('results-list');
+    if (!el) return;
+    if (!results.length) {
+        el.innerHTML = '<div class="result-wait">Aucun visage détecté</div>';
+        return;
+    }
+    el.innerHTML = results.map(r => {
+        const ok      = isKnownStatus(r.status);
+        const already = r.status === 'already_marked';
+        const refused = r.status === 'refused';
+        const tooEarly = r.status === 'too_early';
+        const showName = ok || already || refused || tooEarly;
+        const initials = showName && r.name ? r.name.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase() : '?';
+        let savedHtml = '';
+        if (ok && !r.already_marked && saved > 0)
+            savedHtml = '<div class="result-saved">✓ Présence enregistrée</div>';
+        else if (already)
+            savedHtml = '<div class="result-meta" style="color:#2563eb;">✓ Déjà enregistré aujourd\'hui</div>';
+        else if (refused)
+            savedHtml = '<div class="result-meta" style="color:#7c3aed;">Refusé — hors horaire</div>';
+        else if (tooEarly)
+            savedHtml = '<div class="result-meta" style="color:#f59e0b;">Trop tôt — avant l\'heure</div>';
+        const tone = attendanceTone(r);
+        const iconCls = tone === 'ok' ? 'ok' : tone === 'warn' ? 'warn' : 'unk';
+        const statusColor = attendanceColor(r);
+        return `<div class="result-item">
+            <div class="result-icon ${iconCls}">${initials}</div>
+            <div class="result-info">
+                <div class="result-name">${showName && r.name ? r.name : 'Inconnu'}</div>
+                <div class="result-attendance" style="color:${statusColor};">${attendanceLabel(r)}</div>
+                ${showName && r.student_code ? `<div class="result-meta">${r.student_code} · ${r.classroom || ''}</div>` : ''}
+                ${savedHtml}
+            </div>
+            ${showName && r.confidence ? `<div style="font-size:.72rem;font-weight:700;color:var(--muted);">${r.confidence}%</div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+// ── Nettoyage quand on quitte la page (PJAX) ─────────────────────────────────
+window.addEventListener('beforeunload', cleanup);
+document.addEventListener('pjax:before', cleanup);
+function cleanup() {
+    if (timer) { clearInterval(timer); timer = null; }
+    // Ne pas couper le stream — le bg-panel le prend en charge
+    localStorage.removeItem('sp_live_active');
+    BC && BC.postMessage('live_stopped');
+}
+
+// ── Exposition globale (onclick attributes) ───────────────────────────────────
+window.toggleDebug = toggleDebug;
+
+// ── Auto-démarrage ────────────────────────────────────────────────────────────
+{% if camera.camera_type == 'webcam' %}
+setTimeout(startCam, 300);
+{% endif %}
+
+})();
+</script>
+{% endblock %}

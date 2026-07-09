@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Configuration Journee Scolaire{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">&#9881; Configuration journee scolaire</h1>
+    <p class="page-subtitle">Horaires de reference pour le systeme de presence journaliere</p>
+</div>
+
+{% if messages %}
+<div style="margin-bottom:1rem;">
+    {% for msg in messages %}
+    <div class="alert {% if msg.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">{{ msg }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div style="display:grid; grid-template-columns:2fr 1fr; gap:1.5rem;">
+    <!-- Formulaire -->
+    <div class="card">
+        <h2 class="card-title">&#128337; Parametres horaires</h2>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label class="form-label">Nom de la configuration</label>
+                {{ form.nom }}
+            </div>
+
+            <div style="background:rgba(99,102,241,0.04); border:1px solid var(--border); border-radius:8px; padding:1.25rem; margin:1rem 0;">
+                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:1rem;">
+                    &#9650; Arrivee des eleves
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label">Ouverture portail</label>
+                        {{ form.heure_ouverture }}
+                        <div style="font-size:0.7rem; color:var(--muted); margin-top:0.3rem;">Heure d'ouverture du portail</div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label" style="color:var(--success);">&#9989; Debut cours (Present)</label>
+                        {{ form.heure_debut_cours }}
+                        <div style="font-size:0.7rem; color:var(--muted); margin-top:0.3rem;">Arrivee avant = Present</div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label" style="color:var(--warning);">&#9201; Limite arrivee (Retard)</label>
+                        {{ form.heure_limite_arrivee }}
+                        <div style="font-size:0.7rem; color:var(--muted); margin-top:0.3rem;">Apres = En retard</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background:rgba(239,68,68,0.04); border:1px solid var(--border); border-radius:8px; padding:1.25rem; margin:1rem 0;">
+                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:1rem;">
+                    &#9632; Fin de journee
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label" style="color:var(--success);">&#9989; Fin des cours</label>
+                        {{ form.heure_fin_cours }}
+                        <div style="font-size:0.7rem; color:var(--muted); margin-top:0.3rem;">Apres cette heure, une reconnaissance est signalee hors delai et les absences peuvent etre generees</div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label">Fermeture portail</label>
+                        {{ form.heure_fermeture }}
+                        <div style="font-size:0.7rem; color:var(--muted); margin-top:0.3rem;">Fermeture totale</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background:var(--surface-2, var(--surface)); border:1px solid var(--border); border-radius:8px; padding:1.25rem; margin:1rem 0;">
+                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:1rem;">
+                    &#128197; Jours de classe
+                </div>
+                <div style="display:flex; flex-wrap:wrap; gap:1rem;">
+                    {% for jour_field in form.jours_fields %}
+                    <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer; font-size:0.88rem;">
+                        {{ jour_field }}
+                        <span>{{ jour_field.label }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="margin-top:1rem; width:100%;">
+                &#9989; Enregistrer la configuration
+            </button>
+        </form>
+    </div>
+
+    <!-- Résumé visuel -->
+    <div>
+        <div class="card" style="margin-bottom:1rem;">
+            <h2 class="card-title">&#128336; Chronologie journaliere</h2>
+            <div style="display:flex; flex-direction:column; gap:0.75rem; font-size:0.83rem;">
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <div style="width:60px; text-align:right; font-family:monospace; font-weight:700; color:var(--primary);">{{ config.heure_ouverture|time:"H:i" }}</div>
+                    <div style="width:10px; height:10px; border-radius:50%; background:var(--primary); flex-shrink:0;"></div>
+                    <div>Ouverture portail</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <div style="width:60px; text-align:right; font-family:monospace; font-weight:700; color:var(--success);">{{ config.heure_debut_cours|time:"H:i" }}</div>
+                    <div style="width:10px; height:10px; border-radius:50%; background:var(--success); flex-shrink:0;"></div>
+                    <div style="color:var(--success);">Debut cours — <strong>PRESENT</strong></div>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <div style="width:60px; text-align:right; font-family:monospace; font-weight:700; color:var(--warning);">{{ config.heure_limite_arrivee|time:"H:i" }}</div>
+                    <div style="width:10px; height:10px; border-radius:50%; background:var(--warning); flex-shrink:0;"></div>
+                    <div style="color:var(--warning);">Limite — <strong>RETARD apres</strong></div>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <div style="width:60px; text-align:right; font-family:monospace; font-weight:700; color:var(--success);">{{ config.heure_fin_cours|time:"H:i" }}</div>
+                    <div style="width:10px; height:10px; border-radius:50%; background:var(--success); flex-shrink:0;"></div>
+                    <div>Fin cours — les non enregistres deviennent absents</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <div style="width:60px; text-align:right; font-family:monospace; font-weight:700; color:var(--muted);">{{ config.heure_fermeture|time:"H:i" }}</div>
+                    <div style="width:10px; height:10px; border-radius:50%; background:var(--muted); flex-shrink:0;"></div>
+                    <div>Fermeture portail</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">&#128247; Zones cameras</h2>
+            <p style="font-size:0.8rem; color:var(--muted); margin-bottom:1rem;">
+                Pour que la presence journaliere fonctionne, configurez vos cameras avec les zones appropriees.
+            </p>
+            <div style="display:flex; flex-direction:column; gap:0.6rem; font-size:0.82rem;">
+                <div style="display:flex; align-items:flex-start; gap:0.6rem;">
+                    <span class="badge badge-green" style="flex-shrink:0; margin-top:2px;">CHECK-IN</span>
+                    <div>Camera a l'entree — enregistre l'arrivee et calcule le statut (Present / Retard)</div>
+                </div>
+                <div style="display:flex; align-items:flex-start; gap:0.6rem;">
+                    <span class="badge badge-muted" style="flex-shrink:0; margin-top:2px;">MONITORING</span>
+                    <div>Surveillance uniquement — aucune presence enregistree</div>
+                </div>
+            </div>
+            <div style="margin-top:1rem;">
+                <a href="{% url 'attendance:camera_list' %}" class="btn btn-secondary" style="width:100%; text-align:center;">
+                    &#128247; Gerer les cameras
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block title %}Panneau de controle cameras{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+    <div>
+        <h1 class="page-title">&#128247; Panneau de controle cameras</h1>
+        <p class="page-subtitle">Gestion des modes de detection et surveillance en temps reel</p>
+    </div>
+    <div style="display:flex; gap:0.75rem;">
+        <a href="{% url 'attendance:camera_list' %}" class="btn btn-secondary">&#9881; Configurer les cameras</a>
+        <button onclick="refreshStatus()" class="btn btn-secondary">&#8635; Actualiser</button>
+    </div>
+</div>
+
+{% if messages %}
+<div style="margin-bottom:1rem;">
+    {% for msg in messages %}
+    <div class="alert {% if msg.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">{{ msg }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- KPIs statut caméras -->
+<div style="display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem;">
+    <div class="stat-card" style="border-left:3px solid var(--success);">
+        <div class="stat-value" style="color:var(--success);" id="kpi-online">{{ nb_online }}</div>
+        <div class="stat-label">En ligne</div>
+    </div>
+    <div class="stat-card" style="border-left:3px solid var(--primary);">
+        <div class="stat-value" style="color:var(--primary);">{{ nb_recognition }}</div>
+        <div class="stat-label">RECOGNITION</div>
+    </div>
+    <div class="stat-card" style="border-left:3px solid var(--warning);">
+        <div class="stat-value" style="color:var(--warning);">{{ nb_monitoring }}</div>
+        <div class="stat-label">MONITORING</div>
+    </div>
+    <div class="stat-card" style="border-left:3px solid var(--muted);">
+        <div class="stat-value">{{ nb_off }}</div>
+        <div class="stat-label">OFF</div>
+    </div>
+</div>
+
+<!-- Info architecture -->
+<div class="card" style="margin-bottom:1.5rem; background:rgba(99,102,241,0.04); border-color:rgba(99,102,241,0.2);">
+    <div style="display:flex; gap:2rem; flex-wrap:wrap; align-items:flex-start;">
+        <div style="flex:1; min-width:200px;">
+            <div style="font-size:0.7rem; text-transform:uppercase; font-weight:700; letter-spacing:0.08em; color:var(--muted); margin-bottom:0.75rem;">Architecture des modes</div>
+            <div style="display:flex; flex-direction:column; gap:0.5rem; font-size:0.82rem;">
+                <div style="display:flex; gap:0.6rem; align-items:flex-start;">
+                    <span class="badge badge-green" style="flex-shrink:0; margin-top:1px; font-size:0.7rem;">RECOGNITION</span>
+                    <span>Reconnaissance faciale active — enregistre les presences, calcule les statuts</span>
+                </div>
+                <div style="display:flex; gap:0.6rem; align-items:flex-start;">
+                    <span class="badge badge-yellow" style="flex-shrink:0; margin-top:1px; font-size:0.7rem;">MONITORING</span>
+                    <span>Flux video actif — surveillance sans IA, economise le CPU</span>
+                </div>
+                <div style="display:flex; gap:0.6rem; align-items:flex-start;">
+                    <span class="badge badge-muted" style="flex-shrink:0; margin-top:1px; font-size:0.7rem;">OFF</span>
+                    <span>Camera desactivee — aucun traitement</span>
+                </div>
+            </div>
+        </div>
+        <div style="flex:1; min-width:200px;">
+            <div style="font-size:0.7rem; text-transform:uppercase; font-weight:700; letter-spacing:0.08em; color:var(--muted); margin-bottom:0.75rem;">Horaires configures</div>
+            <div style="font-size:0.82rem; display:flex; flex-direction:column; gap:0.3rem;">
+                <div>&#9650; Debut cours : <strong>{{ day_config.heure_debut_cours|time:"H:i" }}</strong></div>
+                <div>&#9201; Limite retard : <strong>{{ day_config.heure_limite_arrivee|time:"H:i" }}</strong></div>
+                <div>&#9660; Fin cours : <strong>{{ day_config.heure_fin_cours|time:"H:i" }}</strong></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Grille des caméras -->
+<div id="cameras-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:1.25rem;">
+    {% for cam in cameras %}
+    <div class="card" id="cam-card-{{ cam.id }}" style="position:relative; border-top:3px solid
+        {% if not cam.is_active %}var(--muted)
+        {% elif cam.detection_mode == 'off' %}var(--muted)
+        {% elif not cam.is_online %}var(--danger)
+        {% elif cam.detection_mode == 'recognition' %}var(--success)
+        {% else %}var(--warning){% endif %};">
+
+        <!-- En-tête caméra -->
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem;">
+            <div>
+                <div style="font-weight:700; font-size:1rem; color:var(--text);">{{ cam.name }}</div>
+                <div style="font-size:0.75rem; color:var(--muted); margin-top:0.2rem;">
+                    {{ cam.location|default:"Emplacement non specifie" }}
+                </div>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:0.3rem;">
+                <span class="badge {{ cam.status_badge }}" id="status-badge-{{ cam.id }}">
+                    {{ cam.status_label }}
+                </span>
+                <span class="badge badge-blue" style="font-size:0.65rem;">
+                    {{ cam.get_zone_type_display }}
+                </span>
+            </div>
+        </div>
+
+        <!-- Indicateurs temps réel -->
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:0.5rem; margin-bottom:1rem; font-size:0.75rem; text-align:center;">
+            <div style="background:var(--bg); border-radius:6px; padding:0.4rem;">
+                <div style="font-weight:700; color:var(--text);" id="fps-{{ cam.id }}">
+                    {% if cam.fps_estimate %}{{ cam.fps_estimate|floatformat:1 }}{% else %}0{% endif %}
+                </div>
+                <div style="color:var(--muted);">FPS</div>
+            </div>
+            <div style="background:var(--bg); border-radius:6px; padding:0.4rem;">
+                <div style="font-weight:700; color:var(--text);" id="frames-{{ cam.id }}">
+                    {{ cam.frames_processed }}
+                </div>
+                <div style="color:var(--muted);">Images</div>
+            </div>
+            <div style="background:var(--bg); border-radius:6px; padding:0.4rem;">
+                <div style="font-weight:700; color:{% if cam.error_count > 0 %}var(--danger){% else %}var(--success){% endif %};" id="errors-{{ cam.id }}">
+                    {{ cam.error_count }}
+                </div>
+                <div style="color:var(--muted);">Erreurs</div>
+            </div>
+        </div>
+
+        <!-- Dernier contact -->
+        <div style="font-size:0.72rem; color:var(--muted); margin-bottom:1rem;">
+            Dernier contact :
+            <span id="last-seen-{{ cam.id }}">
+                {% if cam.last_seen %}{{ cam.last_seen|time:"H:i:s" }}{% else %}Jamais{% endif %}
+            </span>
+            {% if cam.last_error %}
+            <div style="color:var(--danger); margin-top:0.2rem; font-size:0.7rem; word-break:break-all;">
+                &#9888; {{ cam.last_error|truncatechars:80 }}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Contrôle du mode -->
+        {% if cam.is_active %}
+        <div style="display:flex; gap:0.5rem;">
+            <button onclick="setMode({{ cam.id }}, 'recognition')" class="btn-mode btn-recognition
+                {% if cam.detection_mode == 'recognition' %}active-mode{% endif %}"
+                title="Activer la reconnaissance faciale complete">
+                &#127925; RECOGNITION
+            </button>
+            <button onclick="setMode({{ cam.id }}, 'monitoring_only')" class="btn-mode btn-monitoring
+                {% if cam.detection_mode == 'monitoring_only' %}active-mode{% endif %}"
+                title="Surveillance video uniquement (sans IA)">
+                &#128065; MONITORING
+            </button>
+            <button onclick="setMode({{ cam.id }}, 'off')" class="btn-mode btn-off
+                {% if cam.detection_mode == 'off' %}active-mode{% endif %}"
+                title="Desactiver la camera">
+                &#9940; OFF
+            </button>
+        </div>
+        {% else %}
+        <div style="text-align:center; padding:0.5rem; background:rgba(100,116,139,0.1); border-radius:6px; font-size:0.8rem; color:var(--muted);">
+            Camera desactivee dans la configuration
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="card" style="grid-column:1/-1; text-align:center; padding:3rem;">
+        <div style="font-size:3rem; margin-bottom:1rem;">&#128247;</div>
+        <p style="color:var(--muted);">Aucune camera configuree.</p>
+        <a href="{% url 'attendance:camera_list' %}" class="btn btn-primary" style="margin-top:1rem;">
+            Ajouter une camera
+        </a>
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+.btn-mode {
+    flex: 1;
+    padding: 0.4rem 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    background: var(--surface);
+    color: var(--muted);
+    transition: all 0.15s;
+    text-align: center;
+}
+.btn-recognition { border-color: rgba(34,197,94,0.3); }
+.btn-monitoring  { border-color: rgba(234,179,8,0.3); }
+.btn-off         { border-color: rgba(100,116,139,0.2); }
+.btn-recognition.active-mode { background: rgba(34,197,94,0.15); color: var(--success); border-color: var(--success); }
+.btn-monitoring.active-mode  { background: rgba(234,179,8,0.15); color: var(--warning); border-color: var(--warning); }
+.btn-off.active-mode         { background: rgba(100,116,139,0.1); color: var(--muted); border-color: var(--muted); }
+.btn-mode:hover:not(.active-mode) { opacity: 0.8; filter: brightness(1.2); }
+</style>
+
+<script>
+// var (pas const) — évite la redéclaration lors des navigations PJAX
+var CSRF = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '{{ csrf_token }}';
+
+async function setMode(cameraId, mode) {
+    try {
+        const resp = await fetch(`/facial/cameras/${cameraId}/mode/`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': CSRF},
+            body: `mode=${mode}`
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            // Mettre à jour les boutons
+            const card = document.getElementById(`cam-card-${cameraId}`);
+            card.querySelectorAll('.btn-mode').forEach(b => b.classList.remove('active-mode'));
+            const modeMap = { 'recognition': 'btn-recognition', 'monitoring_only': 'btn-monitoring', 'off': 'btn-off' };
+            const activeBtn = card.querySelector(`.${modeMap[mode]}`);
+            if (activeBtn) activeBtn.classList.add('active-mode');
+
+            // Badge statut
+            const badge = document.getElementById(`status-badge-${cameraId}`);
+            if (badge) {
+                badge.textContent = data.status_label;
+                badge.className = `badge ${data.status_badge}`;
+            }
+        } else {
+            alert('Erreur : ' + (data.error || 'Inconnue'));
+        }
+    } catch (e) {
+        alert('Erreur reseau : ' + e.message);
+    }
+}
+
+async function refreshStatus() {
+    try {
+        const resp = await fetch('/facial/api/cameras/status/');
+        const data = await resp.json();
+        const onlineCount = data.cameras.filter(c => c.is_online).length;
+        const kpi = document.getElementById('kpi-online');
+        if (kpi) kpi.textContent = onlineCount;
+
+        data.cameras.forEach(c => {
+            const lastSeen = document.getElementById(`last-seen-${c.id}`);
+            if (lastSeen) lastSeen.textContent = c.last_seen || 'Jamais';
+            const fps = document.getElementById(`fps-${c.id}`);
+            if (fps) fps.textContent = c.fps_estimate ? c.fps_estimate.toFixed(1) : '0';
+            const frames = document.getElementById(`frames-${c.id}`);
+            if (frames) frames.textContent = c.frames_processed;
+        });
+    } catch(e) { console.warn('Refresh status error:', e); }
+}
+
+// Actualisation automatique toutes les 10 secondes
+setInterval(refreshStatus, 10000);
+</script>
+{% endblock %}

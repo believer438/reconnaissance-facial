@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Reviser ticket #{{ ticket.id }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">&#128269; Revue ticket #{{ ticket.id }}</h1>
+    <p class="page-subtitle">{{ ticket.get_technical_status_display }} — detecte le {{ ticket.detected_at|date:"d/m/Y a H:i:s" }}</p>
+</div>
+
+{% if messages %}
+<div style="margin-bottom:1rem;">
+    {% for msg in messages %}
+    <div class="alert {% if msg.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">{{ msg }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+
+    <!-- Capture + détails techniques -->
+    <div>
+        <div class="card" style="margin-bottom:1.25rem; text-align:center;">
+            <h2 class="card-title" style="text-align:left; margin-bottom:1rem;">&#128247; Visage detecte</h2>
+            {% if ticket.face_image %}
+            <img src="{{ ticket.face_image.url }}" alt="Visage capture"
+                 style="max-width:200px; max-height:200px; border-radius:12px; border:3px solid var(--border); margin:0 auto; display:block;">
+            {% else %}
+            <div style="width:160px; height:160px; background:var(--bg); border-radius:12px; border:2px dashed var(--border);
+                display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:3rem; margin:0 auto;">
+                &#128100;
+            </div>
+            <p style="color:var(--muted); font-size:0.8rem; margin-top:0.5rem;">Capture non disponible</p>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">&#128202; Scores de confiance</h2>
+
+            <!-- Jauge visuelle du score -->
+            <div style="margin-bottom:1.5rem;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:0.4rem;">
+                    <span style="font-size:0.8rem; color:var(--muted);">Score de confiance</span>
+                    <span style="font-size:1.2rem; font-weight:800;
+                        color:{% if ticket.confidence_proposed >= 70 %}var(--warning){% elif ticket.confidence_proposed >= 55 %}#f97316{% else %}var(--danger){% endif %};">
+                        {{ ticket.confidence_proposed|floatformat:1 }}%
+                    </span>
+                </div>
+                <div style="height:10px; background:var(--border); border-radius:5px; overflow:hidden; position:relative;">
+                    <!-- Zones colorées -->
+                    <div style="position:absolute; left:0; top:0; height:100%; width:60%; background:rgba(239,68,68,0.15);"></div>
+                    <div style="position:absolute; left:60%; top:0; height:100%; width:25%; background:rgba(234,179,8,0.15);"></div>
+                    <div style="position:absolute; left:85%; top:0; height:100%; width:15%; background:rgba(34,197,94,0.15);"></div>
+                    <!-- Barre score -->
+                    <div style="height:100%; border-radius:5px; width:{{ ticket.confidence_proposed|floatformat:0 }}%;
+                        background:{% if ticket.confidence_proposed >= 70 %}var(--warning){% elif ticket.confidence_proposed >= 55 %}#f97316{% else %}var(--danger){% endif %};
+                        position:relative; z-index:1;">
+                    </div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.65rem; color:var(--muted); margin-top:0.3rem;">
+                    <span>0% — Inconnu</span>
+                    <span>60% — Zone doute</span>
+                    <span>85% — Sur</span>
+                </div>
+            </div>
+
+            <table style="width:100%; border-collapse:collapse; font-size:0.83rem;">
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:0.5rem 0; color:var(--muted);">Distance LBPH brute</td>
+                    <td style="padding:0.5rem 0; font-family:monospace; font-weight:700;">{{ ticket.distance_lbph|floatformat:2 }}</td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:0.5rem 0; color:var(--muted);">Score confiance</td>
+                    <td style="padding:0.5rem 0; font-weight:700;">{{ ticket.confidence_proposed|floatformat:1 }}%</td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:0.5rem 0; color:var(--muted);">Raison du ticket</td>
+                    <td style="padding:0.5rem 0;">
+                        <span class="badge badge-yellow">{{ ticket.get_technical_status_display }}</span>
+                    </td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:0.5rem 0; color:var(--muted);">Camera</td>
+                    <td style="padding:0.5rem 0;">{% if ticket.camera %}{{ ticket.camera.name }}{% else %}—{% endif %}</td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:0.5rem 0; color:var(--muted);">Source</td>
+                    <td style="padding:0.5rem 0;">{{ ticket.source }}</td>
+                </tr>
+                {% if ticket.second_candidate %}
+                <tr style="border-bottom:1px solid var(--border); background:rgba(234,179,8,0.04);">
+                    <td style="padding:0.5rem 0; color:var(--warning);">Second candidat IA</td>
+                    <td style="padding:0.5rem 0; font-weight:600; color:var(--warning);">
+                        {{ ticket.second_candidate.full_name }} ({{ ticket.confidence_second|floatformat:1 }}%)
+                    </td>
+                </tr>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+
+    <!-- Décision + étudiant proposé -->
+    <div>
+        <div class="card" style="margin-bottom:1.25rem;">
+            <h2 class="card-title">&#128100; Etudiant propose par l'IA</h2>
+            {% if ticket.student_proposed %}
+            <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
+                <div style="width:60px; height:60px; background:linear-gradient(135deg, var(--primary), #6366f1);
+                    border-radius:12px; display:flex; align-items:center; justify-content:center;
+                    font-size:1.5rem; flex-shrink:0;">
+                    &#128100;
+                </div>
+                <div>
+                    <div style="font-size:1.1rem; font-weight:700;">{{ ticket.student_proposed.full_name }}</div>
+                    <div style="font-size:0.8rem; color:var(--muted); font-family:monospace; margin-top:0.2rem;">
+                        {{ ticket.student_proposed.student_code }}
+                    </div>
+                    {% if ticket.student_proposed.classe %}
+                    <span class="badge badge-blue" style="margin-top:0.3rem;">{{ ticket.student_proposed.classe }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <p style="color:var(--muted);">Etudiant non identifie.</p>
+            {% endif %}
+        </div>
+
+        {% if ticket.status == "pending" %}
+        <div class="card" style="border-color:rgba(99,102,241,0.3);">
+            <h2 class="card-title">&#9989; Prendre une decision</h2>
+            <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1.25rem;">
+                Verifiez la capture et decidez si cette reconnaissance est correcte.
+                Valider = enregistrer la presence. Rejeter = ignorer cette detection.
+            </p>
+            <form method="post">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label class="form-label">Decision *</label>
+                    {{ form.action }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Revise par *</label>
+                    {{ form.reviewed_by }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes (optionnel)</label>
+                    {{ form.review_notes }}
+                </div>
+                <div style="display:flex; gap:0.75rem; margin-top:1.5rem;">
+                    <button type="submit" name="action" value="validate"
+                        class="btn btn-primary" style="flex:1; background:var(--success);">
+                        &#9989; Valider la presence
+                    </button>
+                    <button type="submit" name="action_reject" value="1"
+                        class="btn btn-danger" style="flex:1;">
+                        &#10060; Rejeter
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% else %}
+        <div class="card">
+            <h2 class="card-title">&#128196; Decision enregistree</h2>
+            <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">
+                {% if ticket.status == "validated" %}
+                <span class="badge badge-green" style="font-size:0.9rem; padding:0.5rem 1rem;">&#9989; Valide</span>
+                {% else %}
+                <span class="badge badge-muted" style="font-size:0.9rem; padding:0.5rem 1rem;">&#10060; Rejete</span>
+                {% endif %}
+            </div>
+            <table style="width:100%; border-collapse:collapse; font-size:0.83rem;">
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:0.5rem 0; color:var(--muted);">Revise par</td>
+                    <td style="padding:0.5rem 0; font-weight:600;">{{ ticket.reviewed_by|default:"—" }}</td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:0.5rem 0; color:var(--muted);">Date revue</td>
+                    <td style="padding:0.5rem 0;">{{ ticket.reviewed_at|date:"d/m/Y H:i"|default:"—" }}</td>
+                </tr>
+                <tr>
+                    <td style="padding:0.5rem 0; color:var(--muted);">Notes</td>
+                    <td style="padding:0.5rem 0;">{{ ticket.review_notes|default:"—" }}</td>
+                </tr>
+            </table>
+        </div>
+        {% endif %}
+
+        <div style="margin-top:1rem;">
+            <a href="{% url 'attendance:review_queue_list' %}" class="btn btn-secondary" style="width:100%; text-align:center;">
+                &#8592; Retour a la file de revue
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

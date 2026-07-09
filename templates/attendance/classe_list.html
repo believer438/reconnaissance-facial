@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Classes — UniPresence{% endblock %}
+{% block page_title %}Gestion des classes{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'attendance:student_list' %}" class="button secondary sm">Voir les etudiants</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="grid-2" style="align-items:start;">
+
+    <div class="panel">
+        <div class="panel-head">
+            <h3>Ajouter une classe</h3>
+        </div>
+        <div class="panel-body">
+            <form method="post">
+                {% csrf_token %}
+                {% if form.non_field_errors %}
+                <ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                {% endif %}
+
+                <div class="form-row" style="grid-template-columns:1fr 1fr 1.2fr;">
+                    <div class="form-group">
+                        <label for="id_niveau">Niveau *</label>
+                        {{ form.niveau }}
+                        {% if form.niveau.errors %}<ul class="errorlist">{% for e in form.niveau.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_lettre">Lettre *</label>
+                        {{ form.lettre }}
+                        {% if form.lettre.errors %}<ul class="errorlist">{% for e in form.lettre.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_option">Section / option</label>
+                        {{ form.option }}
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="id_annee_academique">Annee scolaire *</label>
+                        {{ form.annee_academique }}
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group" style="flex-direction:row; align-items:center; gap:0.5rem;">
+                        {{ form.is_active }}
+                        <label for="id_is_active" style="margin:0; cursor:pointer;">Classe active</label>
+                    </div>
+                </div>
+
+                <button class="button primary" type="submit">Enregistrer</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-head">
+            <h3>Classes ({{ classes|length }})</h3>
+        </div>
+        {% if classes %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Classe</th>
+                        <th>Niveau</th>
+                        <th>Annee</th>
+                        <th>Etudiants</th>
+                        <th>Horaires</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for classe in classes %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'attendance:classe_detail' classe.id %}" style="color:var(--text); text-decoration:none;">
+                                <strong>{{ classe }}</strong>
+                            </a>
+                            {% if not classe.is_active %}<span class="badge badge-muted" style="margin-left:0.4rem;">Inactive</span>{% endif %}
+                        </td>
+                        <td>{{ classe.niveau }}</td>
+                        <td style="color:var(--muted); font-size:0.8rem;">{{ classe.annee_academique }}</td>
+                        <td>
+                            <a href="{% url 'attendance:student_list' %}?classe={{ classe.id }}" style="color:var(--accent);">
+                                {{ classe.nb_etudiants }} etudiant{{ classe.nb_etudiants|pluralize }}
+                            </a>
+                        </td>
+                        <td style="color:var(--muted);">{{ classe.nb_horaires }} horaire{{ classe.nb_horaires|pluralize }}</td>
+                        <td style="text-align:right;">
+                            <a href="{% url 'attendance:classe_detail' classe.id %}" class="button secondary sm" style="padding:0.2rem 0.5rem;">Details</a>
+                            <form method="post" action="{% url 'attendance:classe_delete' classe.id %}" style="display:inline;" onsubmit="return confirm('Supprimer la classe {{ classe }} ? Les etudiants seront delie mais pas supprimes.');">
+                                {% csrf_token %}
+                                <button type="submit" class="button secondary sm" style="color:var(--danger); padding:0.2rem 0.5rem;">Suppr.</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            Aucune classe configuree.<br>
+            Commencez par creer vos classes avant d'ajouter des etudiants.
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+{% endblock %}

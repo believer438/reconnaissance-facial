@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Statistiques par classe — UniPresence{% endblock %}
+{% block page_title %}Statistiques par classe{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'attendance:stats_classe' %}?date={{ prev_date }}" class="button secondary sm">&larr; Jour precedent</a>
+<a href="{% url 'attendance:stats_classe' %}?date={{ next_date }}" class="button secondary sm">Jour suivant &rarr;</a>
+<a href="{% url 'attendance:daily_attendance_list' %}?date={{ target_date|date:'Y-m-d' }}" class="button primary sm">Liste du jour</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="stats-grid" style="grid-template-columns:repeat(3,1fr); margin-bottom:1.5rem;">
+    <div class="stat-card">
+        <div class="label">Classes actives</div>
+        <div class="value">{{ total_classes }}</div>
+        <div class="sub">en activite</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Etudiants total</div>
+        <div class="value">{{ total_students }}</div>
+        <div class="sub">inscrits actifs</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Taux global</div>
+        <div class="value">{{ global_rate }}%</div>
+        <div class="sub">{{ target_date|date:"d/m/Y" }}</div>
+    </div>
+</div>
+
+{% if day_block %}
+<div class="panel" style="margin-bottom:1rem; padding:0.85rem 1rem; border-color:rgba(234,179,8,0.35); background:rgba(234,179,8,0.08);">
+    <strong>Stats informatives uniquement</strong>
+    <span style="color:var(--muted); margin-left:0.5rem;">{{ day_block }}. Les eleves sans detection ne sont pas comptes absents automatiquement.</span>
+</div>
+{% elif absence_block %}
+<div class="panel" style="margin-bottom:1rem; padding:0.85rem 1rem; border-color:rgba(59,130,246,0.25); background:rgba(59,130,246,0.06);">
+    <strong>Journee en cours</strong>
+    <span style="color:var(--muted); margin-left:0.5rem;">{{ absence_block }}. Les non traces restent separes jusqu'a la fin des cours.</span>
+</div>
+{% else %}
+<div class="panel" style="margin-bottom:1rem; padding:0.85rem 1rem; border-color:rgba(239,68,68,0.25); background:rgba(239,68,68,0.06);">
+    <strong>Fin des cours atteinte</strong>
+    <span style="color:var(--muted); margin-left:0.5rem;">Les eleves sans trace sont maintenant comptes absents.</span>
+</div>
+{% endif %}
+
+{% if rows %}
+<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:1.25rem;">
+    {% for row in rows %}
+    <div class="panel" style="border-color:{% if row.rate >= 80 %}rgba(34,197,94,0.25){% elif row.rate >= 60 %}rgba(234,179,8,0.25){% else %}rgba(239,68,68,0.25){% endif %};">
+        <div class="panel-head">
+            <div>
+                <strong>{{ row.classe.nom }}</strong>
+                <span style="font-size:0.75rem; color:var(--muted); margin-left:0.5rem;">{{ row.classe.niveau }}{% if row.classe.option %} — {{ row.classe.option }}{% endif %}</span>
+            </div>
+            <span style="font-size:1.2rem; font-weight:800; color:{% if row.rate >= 80 %}var(--success){% elif row.rate >= 60 %}var(--warning){% else %}var(--danger){% endif %};">{{ row.rate }}%</span>
+        </div>
+        <div class="panel-body" style="padding:1rem;">
+
+            <!-- Barre de taux -->
+            <div style="height:8px; background:var(--border); border-radius:4px; overflow:hidden; margin-bottom:1rem;">
+                <div style="height:100%; width:{{ row.rate }}%; background:{% if row.rate >= 80 %}var(--success){% elif row.rate >= 60 %}var(--warning){% else %}var(--danger){% endif %}; transition:width .3s;"></div>
+            </div>
+
+            <!-- Stats -->
+            <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:0.5rem; text-align:center; margin-bottom:1rem;">
+                <div>
+                    <div style="font-size:1.1rem; font-weight:700; color:var(--text);">{{ row.nb_students }}</div>
+                    <div style="font-size:0.68rem; color:var(--muted);">etudiants</div>
+                </div>
+                <div>
+                    <div style="font-size:1.1rem; font-weight:700; color:var(--success);">{{ row.nb_present }}</div>
+                    <div style="font-size:0.68rem; color:var(--muted);">presents</div>
+                </div>
+                <div>
+                    <div style="font-size:1.1rem; font-weight:700; color:var(--warning);">{{ row.nb_retard }}</div>
+                    <div style="font-size:0.68rem; color:var(--muted);">retards</div>
+                </div>
+                <div>
+                    <div style="font-size:1.1rem; font-weight:700; color:var(--danger);">{{ row.nb_absent }}</div>
+                    <div style="font-size:0.68rem; color:var(--muted);">absents</div>
+                </div>
+                <div>
+                    <div style="font-size:1.1rem; font-weight:700; color:var(--muted);">{{ row.nb_missing }}</div>
+                    <div style="font-size:0.68rem; color:var(--muted);">non traces</div>
+                </div>
+            </div>
+
+            {% if row.top_absents %}
+            <div style="border-top:1px solid var(--border); padding-top:0.75rem;">
+                <div style="font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.5rem;">Top absences</div>
+                {% for s in row.top_absents %}
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.3rem;">
+                    <a href="{% url 'attendance:student_detail' s.id %}" style="font-size:0.8rem; color:var(--text);">{{ s.full_name }}</a>
+                    <span class="badge badge-red" style="font-size:0.7rem;">{{ s.nb_abs }} abs.</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if row.rate < 75 %}
+            <div style="margin-top:0.75rem; padding:0.5rem 0.75rem; background:rgba(239,68,68,0.08); border-radius:6px; font-size:0.75rem; color:var(--danger);">
+                &#9650; Classe en dessous du seuil reglementaire (75%)
+            </div>
+            {% endif %}
+
+            <div style="margin-top:0.75rem;">
+                <a href="{% url 'attendance:classe_detail' row.classe.id %}?date={{ target_date|date:'Y-m-d' }}" class="button secondary sm" style="width:100%; text-align:center;">Voir le detail de la classe</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">Aucune classe active trouvee.<br><a href="{% url 'attendance:classe_list' %}">Creer une classe</a></div>
+{% endif %}
+
+{% endblock %}

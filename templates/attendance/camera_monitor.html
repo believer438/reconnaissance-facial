@@ -1,0 +1,406 @@
+{% extends 'base.html' %}
+
+{% block title %}Moniteur Live — SecPresence{% endblock %}
+{% block page_title %}
+<span style="display:flex;align-items:center;gap:.5rem;">
+    <span id="mon-dot" style="width:9px;height:9px;border-radius:50%;background:#374151;flex-shrink:0;transition:background .3s;"></span>
+    Moniteur de présence
+</span>
+{% endblock %}
+
+{% block topbar_actions %}
+<div style="display:flex;align-items:center;gap:2px;">
+    <button class="button secondary sm layout-btn active" data-n="1" onclick="setLayout(1)">1</button>
+    <button class="button secondary sm layout-btn" data-n="2" onclick="setLayout(2)">2</button>
+    <button class="button secondary sm layout-btn" data-n="4" onclick="setLayout(4)">4</button>
+</div>
+<select id="sel-classe" style="font-size:.78rem;padding:.25rem .5rem;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;max-width:200px;">
+    <option value="">— Toutes classes —</option>
+    {% for c in classes %}<option value="{{ c.id }}">{{ c }}</option>{% endfor %}
+</select>
+<select id="interval-sel" style="font-size:.78rem;padding:.25rem .5rem;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;">
+    <option value="800">0.8s</option>
+    <option value="1500" selected>1.5s</option>
+    <option value="2500">2.5s</option>
+    <option value="4000">4s</option>
+</select>
+<span id="mon-status" style="font-size:.72rem;padding:.2rem .6rem;border-radius:20px;background:var(--border);color:var(--muted);font-weight:600;">Connexion...</span>
+<button id="btn-stop" onclick="stopAll()" style="font-size:.75rem;padding:.25rem .65rem;background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.35);color:#dc2626;cursor:pointer;border-radius:4px;display:none;">⏹ Arrêter</button>
+{% endblock %}
+
+{% block content %}
+<style>
+@keyframes dotpulse{0%,100%{opacity:1}50%{opacity:.3}}
+.cam-grid{display:grid;gap:6px;height:calc(100vh - 44px - 2.5rem);}
+.cam-cell{position:relative;background:#080d14;border:1px solid #1a2235;overflow:hidden;display:flex;flex-direction:column;min-height:0;border-radius:3px;}
+.cam-cell video{width:100%;height:100%;object-fit:cover;display:block;flex:1;min-height:0;}
+.cam-cell canvas.overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;}
+.cell-header{position:absolute;top:0;left:0;right:0;background:linear-gradient(to bottom,rgba(0,0,0,.85),transparent);padding:.35rem .5rem;display:flex;align-items:center;gap:.35rem;z-index:5;}
+.cell-dot{width:7px;height:7px;flex-shrink:0;border-radius:50%;background:#374151;transition:background .3s;}
+.cell-dot.on{background:#16a34a;animation:dotpulse 1.5s infinite;}
+.cell-dot.warn{background:#d97706;}
+.cell-name{font-size:.72rem;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);}
+.cell-loc{font-size:.62rem;color:rgba(255,255,255,.45);}
+.cell-frames{font-size:.6rem;color:rgba(255,255,255,.3);margin-left:auto;font-family:monospace;}
+.cell-results{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,.9),transparent);padding:.4rem .5rem .35rem;z-index:5;display:flex;flex-wrap:wrap;gap:.25rem;align-items:flex-end;min-height:32px;}
+.result-tag{font-size:.67rem;font-weight:700;padding:.1rem .4rem;border-radius:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;}
+.result-tag.recognized{background:rgba(22,163,74,.9);color:#fff;}
+.result-tag.retard{background:rgba(245,158,11,.95);color:#111827;}
+.result-tag.unknown{background:rgba(220,38,38,.9);color:#fff;}
+.result-tag.waiting{background:rgba(15,22,35,.7);color:#64748b;}
+.no-cam-msg{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.75rem;color:#64748b;font-size:.88rem;text-align:center;background:#080d14;border:1px solid #1a2235;border-radius:3px;min-height:280px;}
+.cam-placeholder{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;color:#64748b;text-align:center;padding:1rem;min-height:0;font-size:.75rem;}
+/* Tickers en bas */
+#global-ticker{position:fixed;bottom:0;left:220px;right:0;background:#0d1117;border-top:1px solid #1a2235;padding:.25rem .75rem;display:flex;gap:1.25rem;align-items:center;font-size:.72rem;z-index:50;}
+</style>
+
+<div class="cam-grid" id="grid"></div>
+<canvas id="cap" style="display:none;"></canvas>
+
+<div id="global-ticker">
+    <span style="color:#64748b;font-family:monospace;">MONITORING</span>
+    <span>🟢 Reconnus : <strong id="g-ok">0</strong></span>
+    <span>🔴 Inconnus : <strong id="g-unk">0</strong></span>
+    <span>✅ Présences : <strong id="g-saved">0</strong></span>
+    <span style="color:#475569;">Frames : <strong id="g-frames">0</strong></span>
+    <span id="g-status" style="color:#475569;margin-left:auto;"></span>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+const CAMERAS       = {{ cameras_json|safe }};
+const RECOGNIZE_URL = "{% url 'attendance:api_recognize_frame' %}";
+const CSRF          = "{{ csrf_token }}";
+const BC            = 'BroadcastChannel' in window ? new BroadcastChannel('sp_live') : null;
+
+let layout       = 1;
+let running      = false;
+let sharedStream = null;
+let intervals    = {};
+let frameCount   = {};
+let cellMap      = {};
+const cap        = document.getElementById('cap');
+let gOk=0, gUnk=0, gSaved=0, gFrames=0;
+
+const GRID_COLS = {1:'1fr',2:'1fr 1fr',4:'1fr 1fr'};
+const GRID_ROWS = {1:'1fr',2:'1fr',    4:'1fr 1fr'};
+
+function setDot(active) {
+    const d = document.getElementById('mon-dot');
+    if (!d) return;
+    d.style.background = active ? '#16a34a' : '#374151';
+    d.style.animation  = active ? 'dotpulse 1.5s infinite' : '';
+}
+function setStatus(txt, color) {
+    const el = document.getElementById('mon-status');
+    if (!el) return;
+    el.textContent = txt;
+    el.style.color      = color || 'var(--muted)';
+    el.style.background = color ? color.replace(/[^,]+\)/, '.08)') : 'var(--border)';
+}
+function updateGlobal() {
+    document.getElementById('g-ok').textContent     = gOk;
+    document.getElementById('g-unk').textContent    = gUnk;
+    document.getElementById('g-saved').textContent  = gSaved;
+    document.getElementById('g-frames').textContent = gFrames;
+}
+
+window.setLayout = function(n) {
+    layout = n;
+    document.querySelectorAll('.layout-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.n)===n));
+    rebuild();
+};
+
+function rebuild() {
+    Object.values(intervals).forEach(clearInterval);
+    intervals = {}; frameCount = {}; cellMap = {};
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    grid.style.gridTemplateColumns = GRID_COLS[layout]||'1fr';
+    grid.style.gridTemplateRows    = GRID_ROWS[layout]||'1fr';
+
+    const shown = CAMERAS.slice(0, layout);
+    if (!shown.length) {
+        const em = document.createElement('div');
+        em.className = 'no-cam-msg';
+        em.innerHTML = '<div style="font-size:2.5rem;opacity:.2">📷</div><div>Aucune caméra active.<br><a href="/facial/cameras/" style="color:#2563eb">Ajouter une caméra</a></div>';
+        grid.appendChild(em);
+        return;
+    }
+    shown.forEach(cam => {
+        const cell = buildCell(cam);
+        cellMap[cam.id] = cell;
+        grid.appendChild(cell);
+        frameCount[cam.id] = 0;
+    });
+    if (running) shown.forEach(cam => startCellRec(cam));
+}
+
+function buildCell(cam) {
+    const cell = document.createElement('div');
+    cell.className = 'cam-cell';
+    cell.dataset.camId = cam.id;
+
+    if (cam.type === 'webcam') {
+        const vid = document.createElement('video');
+        vid.id = `video-${cam.id}`; vid.autoplay = true; vid.playsInline = true; vid.muted = true;
+        vid.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;flex:1;min-height:0;';
+        const ov = document.createElement('canvas');
+        ov.className = 'overlay'; ov.id = `overlay-${cam.id}`;
+        cell.appendChild(vid); cell.appendChild(ov);
+    } else {
+        const ph = document.createElement('div');
+        ph.className = 'cam-placeholder';
+        ph.innerHTML = `<div style="font-size:2rem;opacity:.2">📷</div><strong style="color:#e2e8f0">${cam.name}</strong><span>Caméra IP — requiert serveur local</span>`;
+        cell.appendChild(ph);
+    }
+
+    const hdr = document.createElement('div');
+    hdr.className = 'cell-header';
+    hdr.innerHTML = `<div class="cell-dot" id="dot-${cam.id}"></div><div><div class="cell-name">${cam.name}</div>${cam.location?`<div class="cell-loc">${cam.location}</div>`:''}</div><div class="cell-frames" id="frames-${cam.id}">0f</div>`;
+    cell.appendChild(hdr);
+
+    const res = document.createElement('div');
+    res.className = 'cell-results'; res.id = `results-${cam.id}`;
+    res.innerHTML = '<span class="result-tag waiting">Initialisation...</span>';
+    cell.appendChild(res);
+
+    return cell;
+}
+
+// ── Ouverture caméra avec fallback progressif ────────────────────────────────
+async function openCamera() {
+    const sets = [
+        { video: { width: { ideal: 1280 }, height: { ideal: 720 } } },
+        { video: { width: { ideal: 640 },  height: { ideal: 480 } } },
+        { video: true },
+    ];
+    let lastErr = null;
+    for (const c of sets) {
+        try { return await navigator.mediaDevices.getUserMedia(c); }
+        catch(e) {
+            lastErr = e;
+            if (e.name === 'NotAllowedError' || e.name === 'NotFoundError') break;
+        }
+    }
+    throw lastErr || new Error("Caméra inaccessible");
+}
+
+async function ensureStream() {
+    if (sharedStream && sharedStream.active) return sharedStream;
+    sharedStream = await openCamera();
+    return sharedStream;
+}
+
+async function startAll() {
+    running = true;
+    setStatus('● Actif', '#16a34a'); setDot(true);
+    document.getElementById('btn-stop').style.display = '';
+    localStorage.setItem('sp_monitoring', '1');
+    BC && BC.postMessage('monitor_started');
+
+    const hasWebcam = CAMERAS.slice(0, layout).some(c => c.type === 'webcam');
+    if (hasWebcam) {
+        setStatus('Connexion caméra...', '#eab308');
+        try {
+            const str = await ensureStream();
+            CAMERAS.slice(0, layout).filter(c => c.type === 'webcam').forEach(cam => {
+                const vid = document.getElementById(`video-${cam.id}`);
+                if (vid) { vid.srcObject = str; vid.play().catch(()=>{}); }
+                const dot = document.getElementById(`dot-${cam.id}`);
+                if (dot) dot.className = 'cell-dot on';
+            });
+            setStatus('● Actif', '#16a34a'); setDot(true);
+        } catch(e) {
+            const msg = e.name === 'NotAllowedError'
+                ? 'Permission refusée — autorisez la caméra'
+                : e.name === 'NotFoundError' ? 'Aucune caméra trouvée'
+                : `Erreur : ${e.message}`;
+            setStatus(msg, '#dc2626'); setDot(false);
+            running = false;
+            localStorage.removeItem('sp_monitoring');
+            return;
+        }
+    }
+    CAMERAS.slice(0, layout).forEach(cam => startCellRec(cam));
+}
+
+window.stopAll = function() {
+    running = false;
+    Object.values(intervals).forEach(clearInterval);
+    intervals = {};
+    if (sharedStream) { sharedStream.getTracks().forEach(t => t.stop()); sharedStream = null; }
+    Object.keys(cellMap).forEach(id => {
+        const dot = document.getElementById(`dot-${id}`);
+        if (dot) dot.className = 'cell-dot';
+        const vid = document.getElementById(`video-${id}`);
+        if (vid) vid.srcObject = null;
+        const ov = document.getElementById(`overlay-${id}`);
+        if (ov) ov.getContext('2d').clearRect(0,0,ov.width,ov.height);
+        const res = document.getElementById(`results-${id}`);
+        if (res) res.innerHTML = '<span class="result-tag waiting">Arrêté</span>';
+    });
+    document.getElementById('btn-stop').style.display = 'none';
+    setStatus('Arrêté', 'var(--muted)'); setDot(false);
+    localStorage.removeItem('sp_monitoring');
+    BC && BC.postMessage('monitor_stopped');
+};
+
+document.getElementById('interval-sel').addEventListener('change', function() {
+    if (!running) return;
+    Object.values(intervals).forEach(clearInterval); intervals = {};
+    CAMERAS.slice(0, layout).forEach(cam => startCellRec(cam));
+});
+
+function startCellRec(cam) {
+    if (cam.type !== 'webcam') return;
+    const ms  = parseInt(document.getElementById('interval-sel').value, 10) || 1500;
+    const idx = CAMERAS.slice(0, layout).findIndex(c => c.id === cam.id);
+    setTimeout(() => {
+        if (!running) return;
+        intervals[cam.id] = setInterval(() => recognizeCell(cam), ms);
+    }, idx * 200);
+}
+
+async function recognizeCell(cam) {
+    const vid = document.getElementById(`video-${cam.id}`);
+    if (!vid || vid.readyState < 2 || !vid.videoWidth) return;
+    const W = vid.videoWidth, H = vid.videoHeight;
+    cap.width = W; cap.height = H;
+    cap.getContext('2d').drawImage(vid, 0, 0, W, H);
+    const b64       = cap.toDataURL('image/jpeg', 0.82);
+    const classeId  = document.getElementById('sel-classe').value;
+
+    let data;
+    try {
+        const r = await fetch(RECOGNIZE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ image: b64, camera_id: String(cam.id), classe_id: classeId }),
+        });
+        if (!r.ok) return;
+        data = await r.json();
+    } catch { return; }
+
+    frameCount[cam.id] = (frameCount[cam.id]||0) + 1;
+    gFrames++;
+    const fe = document.getElementById(`frames-${cam.id}`);
+    if (fe) fe.textContent = `${frameCount[cam.id]}f`;
+
+    const results = data.results || [];
+    const saved   = data.saved   || 0;
+    drawBoxes(cam.id, results, W, H);
+    renderResults(cam.id, results);
+
+    gOk    += results.filter(r=>r.status==='recognized').length;
+    gUnk   += results.filter(r=>r.status==='unknown').length;
+    gSaved += saved;
+    updateGlobal();
+
+    if (results.length) {
+        const names = results.filter(r=>r.status==='recognized').map(r=>r.name);
+        if (names.length) document.getElementById('g-status').textContent = 'Dernier : '+names.join(', ');
+    }
+}
+
+function drawBoxes(camId, results, W, H) {
+    const ov = document.getElementById(`overlay-${camId}`);
+    if (!ov) return;
+    ov.width  = ov.offsetWidth  || ov.parentElement.offsetWidth;
+    ov.height = ov.offsetHeight || ov.parentElement.offsetHeight;
+    const ctx = ov.getContext('2d');
+    ctx.clearRect(0, 0, ov.width, ov.height);
+    if (!results.length) return;
+
+    const sx = ov.width / W, sy = ov.height / H;
+    for (const r of results) {
+        const [bxP, byP, bwP, bhP] = r.bbox;
+        const x = bxP/100*W*sx, y = byP/100*H*sy;
+        const w = bwP/100*W*sx, h = bhP/100*H*sy;
+        const col = attendanceColor(r);
+
+        ctx.strokeStyle = col; ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
+
+        const cs = Math.min(w,h) * 0.2;
+        ctx.lineWidth = 3; ctx.strokeStyle = col;
+        ctx.beginPath();
+        ctx.moveTo(x,y+cs); ctx.lineTo(x,y); ctx.lineTo(x+cs,y);
+        ctx.moveTo(x+w-cs,y); ctx.lineTo(x+w,y); ctx.lineTo(x+w,y+cs);
+        ctx.moveTo(x,y+h-cs); ctx.lineTo(x,y+h); ctx.lineTo(x+cs,y+h);
+        ctx.moveTo(x+w-cs,y+h); ctx.lineTo(x+w,y+h); ctx.lineTo(x+w,y+h-cs);
+        ctx.stroke();
+
+        const label = isKnownStatus(r.status) ? `${r.name}  ${r.confidence}%` : 'INCONNU';
+        const statusLine = attendanceLabel(r).toUpperCase();
+        ctx.font = 'bold 11px "Segoe UI", sans-serif';
+        const tw = Math.max(ctx.measureText(label).width, ctx.measureText(statusLine).width) + 10;
+        ctx.fillStyle = col; ctx.fillRect(x, y-34, tw, 34);
+        ctx.fillStyle = '#fff'; ctx.fillText(label, x+5, y-19);
+        ctx.font = 'bold 10px "Segoe UI", sans-serif';
+        ctx.fillText(statusLine, x+5, y-6);
+    }
+}
+
+function isKnownStatus(status) {
+    return ['recognized', 'already_marked', 'present', 'retard', 'excuse'].includes(status);
+}
+
+function attendanceCode(r) {
+    return r.attendance_status || (isKnownStatus(r.status) ? r.status : 'unknown');
+}
+
+function attendanceLabel(r) {
+    const code = attendanceCode(r);
+    const labels = {
+        recognized: 'Présent',
+        already_marked: 'Déjà marqué',
+        present: 'Présent',
+        retard: 'Retard',
+        absent: 'Absent',
+        excuse: 'Excusé',
+        refused: 'Refusé',
+        unknown: 'Inconnu'
+    };
+    return r.attendance_label || labels[code] || labels[r.status] || 'Inconnu';
+}
+
+function attendanceColor(r) {
+    const code = attendanceCode(r);
+    if (code === 'present' || code === 'recognized' || code === 'excuse') return '#16a34a';
+    if (code === 'retard' || code === 'already_marked') return '#f59e0b';
+    if (code === 'refused' || r.status === 'refused') return '#7c3aed';
+    return '#dc2626';
+}
+
+function renderResults(camId, results) {
+    const el = document.getElementById(`results-${camId}`);
+    if (!el) return;
+    if (!results.length) {
+        el.innerHTML = '<span class="result-tag waiting">Aucun visage</span>';
+        return;
+    }
+    el.innerHTML = results.map(r => {
+        const code = attendanceCode(r);
+        const cls   = isKnownStatus(r.status) ? (code === 'retard' || code === 'already_marked' ? 'retard' : 'recognized') : 'unknown';
+        const label = isKnownStatus(r.status) ? `✓ ${r.name} · ${attendanceLabel(r)} (${r.confidence}%)` : '? Inconnu';
+        return `<span class="result-tag ${cls}">${label}</span>`;
+    }).join('');
+}
+
+// ── Nettoyage au départ de la page (mais monitoring continue en bg sidebar) ──
+window.addEventListener('beforeunload', () => {
+    // Ne pas supprimer sp_monitoring — le bg panel prend le relais
+});
+
+// ── Auto-démarrage dès que la page est prête ─────────────────────────────────
+rebuild();
+{% if cameras %}
+setTimeout(startAll, 400);
+{% endif %}
+
+})();
+</script>
+{% endblock %}

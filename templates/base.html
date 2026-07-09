@@ -1,0 +1,483 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}SecPresence{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+<div class="page-shell">
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="sidebar-logo-icon">SP</div>
+            <div>
+                <h1>SecPresence</h1>
+                <p>École Secondaire</p>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+
+            <div class="nav-section">
+                <span class="nav-label">&#127979; Présence journalière</span>
+                <a href="{% url 'attendance:dashboard' %}"
+                   class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                    <span class="nav-icon">&#127759;</span> Tableau de bord
+                </a>
+                <a href="{% url 'attendance:daily_attendance_list' %}"
+                   class="nav-link {% if request.resolver_match.url_name == 'daily_attendance_list' or request.resolver_match.url_name == 'daily_attendance_edit' %}active{% endif %}">
+                    <span class="nav-icon">&#128203;</span> Liste du jour
+                </a>
+                <a href="{% url 'attendance:school_day_config' %}"
+                   class="nav-link {% if request.resolver_match.url_name == 'school_day_config' %}active{% endif %}">
+                    <span class="nav-icon">&#128336;</span> Horaires journée
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <span class="nav-label">Gestion</span>
+                <a href="{% url 'attendance:classe_list' %}"
+                   class="nav-link {% if 'classe' in request.resolver_match.url_name %}active{% endif %}">
+                    <span class="nav-icon">&#9670;</span> Classes
+                </a>
+                <a href="{% url 'attendance:student_list' %}"
+                   class="nav-link {% if 'student' in request.resolver_match.url_name or request.resolver_match.url_name == 'photo_delete' %}active{% endif %}">
+                    <span class="nav-icon">&#9671;</span> Élèves
+                </a>
+                <a href="{% url 'attendance:jours_feries_list' %}"
+                   class="nav-link {% if 'jours_feries' in request.resolver_match.url_name %}active{% endif %}">
+                    <span class="nav-icon">&#9728;</span> Calendrier scolaire
+                </a>
+                <a href="{% url 'attendance:salle_list' %}"
+                   class="nav-link {% if 'salle' in request.resolver_match.url_name %}active{% endif %}">
+                    <span class="nav-icon">&#9641;</span> Salles
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <span class="nav-label">&#128247; Caméras</span>
+                <a href="{% url 'attendance:camera_list' %}"
+                   class="nav-link {% if request.resolver_match.url_name == 'camera_list' or request.resolver_match.url_name == 'camera_edit' or request.resolver_match.url_name == 'camera_live' %}active{% endif %}">
+                    <span class="nav-icon">&#9685;</span> Caméras
+                </a>
+                <a href="{% url 'attendance:camera_control_panel' %}"
+                   class="nav-link {% if request.resolver_match.url_name == 'camera_control_panel' %}active{% endif %}"
+                   style="border:1px solid rgba(34,197,94,0.3);">
+                    <span class="nav-icon">&#128247;</span> Contrôle caméras
+                </a>
+                <a href="{% url 'attendance:camera_monitor' %}"
+                   class="nav-link {% if request.resolver_match.url_name == 'camera_monitor' %}active{% endif %}">
+                    <span class="nav-icon">&#9680;</span> Moniteur Live
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <span class="nav-label">&#128269; Alertes</span>
+                <a href="{% url 'attendance:unknown_faces' %}"
+                   class="nav-link {% if 'unknown' in request.resolver_match.url_name %}active{% endif %}">
+                    <span class="nav-icon">&#9650;</span> Visages inconnus
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <span class="nav-label">Rapports</span>
+                <a href="{% url 'attendance:reports' %}"
+                   class="nav-link {% if request.resolver_match.url_name == 'reports' or request.resolver_match.url_name == 'export_excel' %}active{% endif %}">
+                    <span class="nav-icon">&#9636;</span> Rapports &amp; Export
+                </a>
+                <a href="{% url 'attendance:stats_classe' %}"
+                   class="nav-link {% if request.resolver_match.url_name == 'stats_classe' %}active{% endif %}">
+                    <span class="nav-icon">&#128202;</span> Stats par classe
+                </a>
+                <a href="{% url 'attendance:attendance_list' %}"
+                   class="nav-link {% if request.resolver_match.url_name == 'attendance_list' or request.resolver_match.url_name == 'attendance_edit' %}active{% endif %}">
+                    <span class="nav-icon">&#9645;</span> Détections brutes
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <span class="nav-label">Actions IA</span>
+                <a href="{% url 'attendance:recognize_upload' %}"
+                   class="nav-action accent" style="display:block; text-decoration:none; text-align:left;">
+                    &#9685; Tester par photo
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <span class="nav-label">Système</span>
+                <a href="{% url 'attendance:system_config' %}"
+                   class="nav-link {% if request.resolver_match.url_name == 'system_config' %}active{% endif %}">
+                    <span class="nav-icon">&#9881;</span> Configuration
+                </a>
+                {% if user.is_superuser or user.is_staff %}
+                <a href="{% url 'attendance:user_list' %}"
+                   class="nav-link {% if 'user_' in request.resolver_match.url_name %}active{% endif %}">
+                    <span class="nav-icon">&#128101;</span> Utilisateurs
+                </a>
+                <a href="{% url 'attendance:system_log' %}"
+                   class="nav-link {% if request.resolver_match.url_name == 'system_log' %}active{% endif %}">
+                    <span class="nav-icon">&#128221;</span> Journal activité
+                </a>
+                {% endif %}
+                <a href="{% url 'attendance:detection_events' %}"
+                   class="nav-link {% if request.resolver_match.url_name == 'detection_events' %}active{% endif %}">
+                    <span class="nav-icon">&#128196;</span> Évènements bruts
+                </a>
+                <a href="/facial/admin/" class="nav-link" target="_blank">
+                    <span class="nav-icon">&#128737;</span> Administration
+                </a>
+            </div>
+        </nav>
+
+        <!-- ── Panneau reconnaissance en arrière-plan ── -->
+        <div id="bg-cam-panel" style="border-top:1px solid rgba(255,255,255,0.06); padding:0.6rem 0.75rem; flex-shrink:0;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.35rem;">
+                <span style="font-size:0.7rem; font-weight:700; color:#60a5fa; letter-spacing:0.04em;">
+                    <span id="bg-dot" style="display:inline-block;width:7px;height:7px;background:#374151;border-radius:50%;margin-right:4px;vertical-align:middle;transition:background 0.3s;"></span>
+                    RECONNAISSANCE
+                </span>
+                <button id="bg-toggle-btn" onclick="bgToggle()"
+                    style="font-size:0.63rem; padding:0.12rem 0.4rem; background:rgba(37,99,235,0.15); border:1px solid rgba(37,99,235,0.35); color:#60a5fa; cursor:pointer; border-radius:3px; line-height:1.4;">
+                    Démarrer
+                </button>
+            </div>
+            <div id="bg-status" style="font-size:0.63rem; color:#4b5563; min-height:13px; line-height:1.3;">
+                Prêt — cliquez Démarrer
+            </div>
+            <video id="bg-video" autoplay playsinline muted
+                style="width:100%;max-height:70px;object-fit:cover;border-radius:3px;margin-top:0.3rem;display:none;background:#0d1117;border:1px solid #1e2d3d;"></video>
+            <canvas id="bg-canvas" style="display:none;"></canvas>
+            <button id="bg-preview-btn" onclick="bgTogglePreview()"
+                style="display:none;font-size:0.6rem;color:#374151;background:none;border:none;cursor:pointer;padding:0;margin-top:0.2rem;line-height:1.3;">
+                Afficher aperçu
+            </button>
+        </div>
+
+        <div class="sidebar-footer">
+            {% if user.is_authenticated %}
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem;">
+                <span style="font-size:0.75rem; color:var(--muted);">&#128100; {{ user.username }}</span>
+                <form method="post" action="/facial/logout/" style="margin:0;">
+                    {% csrf_token %}
+                    <button type="submit" style="background:none; border:none; color:var(--muted); cursor:pointer; font-size:0.72rem; padding:0.2rem 0.4rem; border-radius:4px;" title="Se déconnecter">
+                        Déconnexion &rarr;
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+            <div style="margin-top:0.4rem; font-size:0.68rem; color:rgba(100,116,139,0.5);">Django 5 &middot; OpenCV LBPH</div>
+        </div>
+    </aside>
+
+    <main class="main-content" id="pjax-content">
+        <div class="topbar">
+            <h2 id="pjax-title">{% block page_title %}{% endblock %}</h2>
+            <div class="topbar-right">{% block topbar_actions %}{% endblock %}</div>
+        </div>
+
+        <div class="page-body">
+            {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                <div class="message {{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+</div>
+
+<!-- Toasts de reconnaissance -->
+<div id="bg-toasts" style="position:fixed;top:1rem;right:1rem;z-index:99999;display:flex;flex-direction:column;gap:0.4rem;pointer-events:none;max-width:260px;"></div>
+<div id="bg-mini-status" class="bg-mini-status idle">
+    <span id="bg-mini-dot"></span>
+    <span>
+        <strong id="bg-mini-title">Reconnaissance arrêtée</strong>
+        <small id="bg-mini-detail">Caméra non lancée</small>
+    </span>
+</div>
+
+<style>
+@keyframes lpulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+@keyframes bgPulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+@keyframes toastIn  { from{opacity:0;transform:translateX(16px);} to{opacity:1;transform:translateX(0);} }
+@keyframes toastOut { from{opacity:1;transform:translateX(0);} to{opacity:0;transform:translateX(16px);} }
+.badge-warning{background:rgba(234,179,8,.15);color:#eab308;border:1px solid rgba(234,179,8,.3);padding:.15rem .5rem;border-radius:4px;font-size:.72rem;font-weight:700}
+.badge-success{background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.3);padding:.15rem .5rem;border-radius:4px;font-size:.72rem;font-weight:700}
+.badge-muted  {background:rgba(148,163,184,.1);color:#94a3b8;border:1px solid rgba(148,163,184,.2);padding:.15rem .5rem;border-radius:4px;font-size:.72rem;font-weight:700}
+.badge-red    {background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);padding:.15rem .5rem;border-radius:4px;font-size:.72rem;font-weight:700}
+.badge-blue   {background:rgba(59,130,246,.15);color:#60a5fa;border:1px solid rgba(59,130,246,.3);padding:.15rem .5rem;border-radius:4px;font-size:.72rem;font-weight:700}
+.badge-yellow {background:rgba(234,179,8,.15);color:#eab308;border:1px solid rgba(234,179,8,.3);padding:.15rem .5rem;border-radius:4px;font-size:.72rem;font-weight:700}
+.badge-green  {background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.3);padding:.15rem .5rem;border-radius:4px;font-size:.72rem;font-weight:700}
+.button.danger{background:#991b1b;color:#fff;border:1px solid #dc2626}
+.button.danger:hover{background:#dc2626}
+.bg-toast{background:#0f172a;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:.5rem .75rem;font-size:.78rem;box-shadow:0 4px 20px rgba(0,0,0,.5);pointer-events:auto;animation:toastIn .25s ease;}
+.bg-toast.present{border-color:rgba(34,197,94,.4);color:#86efac}
+.bg-toast.retard {border-color:rgba(234,179,8,.4);color:#fde68a}
+.bg-toast.unknown{border-color:rgba(148,163,184,.15);color:#64748b}
+.bg-mini-status{position:fixed;right:1rem;bottom:1rem;z-index:99998;display:flex;align-items:center;gap:.55rem;background:#0f172a;border:1px solid rgba(148,163,184,.2);box-shadow:0 8px 28px rgba(0,0,0,.38);border-radius:8px;padding:.55rem .7rem;min-width:210px;max-width:280px;pointer-events:none}
+.bg-mini-status span:last-child{display:flex;flex-direction:column;gap:.08rem}
+.bg-mini-status strong{font-size:.76rem;color:#e5e7eb;line-height:1.2}
+.bg-mini-status small{font-size:.66rem;color:#94a3b8;line-height:1.2}
+#bg-mini-dot{width:9px;height:9px;border-radius:999px;background:#64748b;flex:0 0 9px}
+.bg-mini-status.on{border-color:rgba(34,197,94,.35)}
+.bg-mini-status.on #bg-mini-dot{background:#22c55e;animation:bgPulse 1.5s infinite}
+.bg-mini-status.warn{border-color:rgba(234,179,8,.35)}
+.bg-mini-status.warn #bg-mini-dot{background:#eab308}
+.bg-mini-status.err{border-color:rgba(239,68,68,.4)}
+.bg-mini-status.err #bg-mini-dot{background:#ef4444}
+#bg-dot.on{background:#22c55e!important;animation:bgPulse 1.5s infinite}
+#bg-dot.warn{background:#eab308!important}
+#bg-dot.err {background:#ef4444!important}
+</style>
+
+<script>
+(function(){
+'use strict';
+
+/* ════════════════════════════════════════════════════════
+   PJAX — navigation sans rechargement de la page entière
+   La sidebar + la caméra restent vivantes entre les pages
+   ════════════════════════════════════════════════════════ */
+
+function isInternal(href){
+    if(!href||href.startsWith('#')||href.startsWith('javascript')) return false;
+    try{
+        const u = new URL(href, location.origin);
+        if(u.hostname !== location.hostname) return false;
+        return u.pathname.startsWith('/facial/');
+    }catch{return false;}
+}
+
+function updateNavActive(pathname){
+    document.querySelectorAll('.sidebar .nav-link').forEach(a=>{
+        const h = a.getAttribute('href');
+        if(!h) return;
+        try{
+            const lp = new URL(h, location.origin).pathname;
+            const active = lp!=='/' && (lp===pathname || pathname.startsWith(lp));
+            a.classList.toggle('active', active);
+        }catch{}
+    });
+}
+
+function pjaxLoad(url, push=true){
+    fetch(url,{headers:{'X-Pjax':'1','X-Requested-With':'XMLHttpRequest'}})
+        .then(r=>{ if(!r.ok) throw new Error(r.status); return r.text(); })
+        .then(html=>{
+            const doc = new DOMParser().parseFromString(html,'text/html');
+            const newMain = doc.getElementById('pjax-content');
+            const curMain = document.getElementById('pjax-content');
+            if(!newMain||!curMain){ window.location.href=url; return; }
+            curMain.innerHTML = newMain.innerHTML;
+            document.title = doc.title;
+            if(push) history.pushState({pjax:true,url},doc.title,url);
+            updateNavActive(new URL(url,location.origin).pathname);
+            window.scrollTo(0,0);
+            // Re-execute inline scripts in new content
+            curMain.querySelectorAll('script').forEach(old=>{
+                const s=document.createElement('script');
+                if(old.src) s.src=old.src; else s.textContent=old.textContent;
+                old.replaceWith(s);
+            });
+        })
+        .catch(()=>{ window.location.href=url; });
+}
+
+document.addEventListener('click',function(e){
+    const link=e.target.closest('a[href]');
+    if(!link||link.dataset.noPjax!==undefined||link.target==='_blank') return;
+    if(link.closest('form')) return;
+    const href=link.getAttribute('href');
+    if(!isInternal(href)) return;
+    e.preventDefault();
+    pjaxLoad(href);
+});
+
+window.addEventListener('popstate',function(e){
+    if(e.state&&e.state.pjax) pjaxLoad(e.state.url||location.href,false);
+});
+
+history.replaceState({pjax:true,url:location.href},document.title,location.href);
+
+
+/* ════════════════════════════════════════════════════════
+   RECONNAISSANCE EN ARRIÈRE-PLAN — persistante entre pages
+   ════════════════════════════════════════════════════════ */
+
+const BG = {
+    running: false,
+    stream: null,
+    timer: null,
+    frames: 0,
+    intervalMs: 2000,
+    showPreview: false,
+    CSRF: '{{ csrf_token }}',
+    URL: '/facial/api/recognize-frame/',
+};
+
+// Auto-restaurer l'état si l'utilisateur avait démarré la reconnaissance
+if(localStorage.getItem('bg_cam_running')==='1'){
+    // Petit délai pour s'assurer que le DOM est prêt
+    setTimeout(()=>{ if(!BG.running) bgStart(); }, 800);
+}
+
+function bgSetStatus(msg, cls){
+    const el=document.getElementById('bg-status');
+    if(el){ el.textContent=msg; el.style.color=cls||'#4b5563'; }
+}
+function bgSetMini(state, title, detail){
+    const box=document.getElementById('bg-mini-status');
+    const t=document.getElementById('bg-mini-title');
+    const d=document.getElementById('bg-mini-detail');
+    if(box) box.className='bg-mini-status '+(state||'idle');
+    if(t) t.textContent=title||'Reconnaissance arrêtée';
+    if(d) d.textContent=detail||'Caméra non lancée';
+}
+function bgSetDot(state){
+    const d=document.getElementById('bg-dot');
+    if(!d) return;
+    d.className=state;
+}
+
+window.bgToggle = function(){
+    BG.running ? bgStop() : bgStart();
+};
+
+window.bgTogglePreview = function(){
+    BG.showPreview = !BG.showPreview;
+    const vid=document.getElementById('bg-video');
+    if(vid) vid.style.display = BG.showPreview?'block':'none';
+    const btn=document.getElementById('bg-preview-btn');
+    if(btn) btn.textContent = BG.showPreview?'Masquer aperçu':'Afficher aperçu';
+};
+
+async function bgStart(){
+    bgSetStatus('Accès caméra...','#60a5fa');
+    bgSetDot('warn');
+    bgSetMini('warn','Reconnaissance en démarrage','Accès caméra...');
+    // Fallback progressif — retire facingMode pour compatibilité desktop
+    const camSets = [
+        {video:{width:{ideal:640},height:{ideal:480}}},
+        {video:true},
+    ];
+    let lastErr = null;
+    for(const c of camSets){
+        try{ BG.stream = await navigator.mediaDevices.getUserMedia(c); break; }
+        catch(e){
+            lastErr=e;
+            if(e.name==='NotAllowedError'||e.name==='NotFoundError') break;
+        }
+    }
+    if(!BG.stream){
+        bgSetStatus('Erreur : '+((lastErr&&lastErr.name)||'caméra inaccessible'),'#ef4444');
+        bgSetDot('err');
+        bgSetMini('err','Caméra inaccessible',(lastErr&&lastErr.name)||'Erreur caméra');
+        localStorage.removeItem('bg_cam_running');
+        return;
+    }
+    const vid=document.getElementById('bg-video');
+    if(vid){ vid.srcObject=BG.stream; vid.play().catch(()=>{}); }
+
+    BG.running=true; BG.frames=0;
+    bgSetDot('on');
+    bgSetStatus('Actif — reconnaissance en cours','#22c55e');
+    bgSetMini('on','Reconnaissance en cours','Caméra locale lancée');
+    localStorage.setItem('bg_cam_running','1');
+
+    const btn=document.getElementById('bg-toggle-btn');
+    if(btn){ btn.textContent='Arrêter'; btn.style.borderColor='rgba(239,68,68,0.4)'; btn.style.color='#f87171'; }
+    const pb=document.getElementById('bg-preview-btn');
+    if(pb) pb.style.display='';
+
+    BG.timer=setInterval(bgFrame, BG.intervalMs);
+}
+
+function bgStop(){
+    BG.running=false;
+    if(BG.timer){ clearInterval(BG.timer); BG.timer=null; }
+    if(BG.stream){ BG.stream.getTracks().forEach(t=>t.stop()); BG.stream=null; }
+    const vid=document.getElementById('bg-video');
+    if(vid){ vid.srcObject=null; vid.style.display='none'; }
+    bgSetDot('');
+    bgSetStatus('Arrêté','#374151');
+    bgSetMini('idle','Reconnaissance arrêtée','Caméra non lancée');
+    localStorage.removeItem('bg_cam_running');
+
+    const btn=document.getElementById('bg-toggle-btn');
+    if(btn){ btn.textContent='Démarrer'; btn.style.borderColor=''; btn.style.color=''; }
+    const pb=document.getElementById('bg-preview-btn');
+    if(pb) pb.style.display='none';
+}
+
+async function bgFrame(){
+    if(!BG.running||!BG.stream) return;
+    const vid=document.getElementById('bg-video');
+    const can=document.getElementById('bg-canvas');
+    if(!vid||!can||vid.readyState<2||!vid.videoWidth) return;
+
+    can.width=vid.videoWidth; can.height=vid.videoHeight;
+    can.getContext('2d').drawImage(vid,0,0);
+    const b64=can.toDataURL('image/jpeg',0.72);
+
+    let data;
+    try{
+        const r=await fetch(BG.URL,{
+            method:'POST',
+            headers:{'Content-Type':'application/json','X-CSRFToken':BG.CSRF},
+            body:JSON.stringify({image:b64}),
+        });
+        if(!r.ok) return;
+        data=await r.json();
+    }catch{ return; }
+
+    BG.frames++;
+    bgSetStatus(`Actif — ${BG.frames} image${BG.frames>1?'s':''} traitée${BG.frames>1?'s':''}`, '#22c55e');
+    bgSetMini('on','Reconnaissance en cours',`${BG.frames} image${BG.frames>1?'s':''} traitée${BG.frames>1?'s':''}`);
+
+    (data.results||[]).forEach(r=>{
+        if(r.status==='recognized'&&!r.already_marked){
+            const type = r.attendance_status || r.status;
+            bgToast(r.name, r.classroom, type, r.confidence);
+        }
+    });
+}
+
+function bgToast(name, cls, type, conf){
+    const c=document.getElementById('bg-toasts');
+    if(!c) return;
+    const icons={present:'✓ ',retard:'⚠ ',excuse:'✓ ',refused:'⚠ ',unknown:'? '};
+    const labels={present:'Présent',retard:'En retard',excuse:'Excusé',refused:'Refusé',unknown:'Inconnu'};
+    const t=document.createElement('div');
+    t.className='bg-toast '+type;
+    t.innerHTML=`<strong>${icons[type]||''}${name}</strong>`+
+        (cls?`<br><span style="font-size:.7rem;opacity:.65;">${cls}</span>`:'')+
+        `<br><span style="font-size:.68rem;opacity:.5;">${labels[type]||type} &bull; ${conf}%</span>`;
+    c.appendChild(t);
+    setTimeout(()=>{ t.style.animation='toastOut .35s ease forwards'; setTimeout(()=>t.remove(),360); },4500);
+}
+
+async function bgPollCameraStatus(){
+    if(BG.running) return;
+    try{
+        const r=await fetch('/facial/api/cameras/status/',{headers:{'X-Requested-With':'XMLHttpRequest'}});
+        if(!r.ok) return;
+        const data=await r.json();
+        const cams=data.cameras||[];
+        const online=cams.filter(c=>c.is_online).length;
+        const active=cams.length;
+        if(online>0) bgSetMini('on','Caméras en ligne',`${online}/${active} caméra${active>1?'s':''} active${active>1?'s':''}`);
+        else bgSetMini('idle','Reconnaissance arrêtée', active>0 ? `${active} caméra${active>1?'s':''} configurée${active>1?'s':''}` : 'Aucune caméra active');
+    }catch{}
+}
+bgPollCameraStatus();
+setInterval(bgPollCameraStatus, 10000);
+
+})();
+</script>
+</body>
+</html>

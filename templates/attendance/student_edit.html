@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier {{ student.full_name }} — SecPresence{% endblock %}
+{% block page_title %}Modifier la fiche élève{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'attendance:student_detail' student.id %}" class="button secondary sm">&larr; Retour à la fiche</a>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+    <div>
+        <h2 style="margin:0; font-size:1.1rem;">{{ student.full_name }}</h2>
+        <span style="font-family:monospace; font-size:0.8rem; color:var(--muted);">{{ student.student_code }}</span>
+    </div>
+    <span class="badge {{ student.statut_badge }}">{{ student.get_statut_display }}</span>
+</div>
+
+<form method="post" enctype="multipart/form-data">
+{% csrf_token %}
+{% if form.non_field_errors %}
+<div class="message error" style="margin-bottom:1rem;">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>
+{% endif %}
+
+<div class="grid-2" style="align-items:start; gap:1.25rem;">
+    <div>
+        <div class="panel" style="margin-bottom:1.25rem;">
+            <div class="panel-head"><h3>🪪 Identité</h3></div>
+            <div class="panel-body">
+                <div class="form-row" style="grid-template-columns:1fr 1fr 1fr;">
+                    <div class="form-group">
+                        <label for="id_nom">Nom *</label>{{ form.nom }}
+                        {% if form.nom.errors %}<ul class="errorlist">{% for e in form.nom.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    <div class="form-group"><label for="id_post_nom">Post-nom</label>{{ form.post_nom }}</div>
+                    <div class="form-group"><label for="id_prenom">Prénom(s)</label>{{ form.prenom }}</div>
+                </div>
+                <div class="form-row" style="grid-template-columns:1fr 1fr 1fr;">
+                    <div class="form-group"><label for="id_sexe">Sexe</label>{{ form.sexe }}</div>
+                    <div class="form-group"><label for="id_date_of_birth">Date de naissance</label>{{ form.date_of_birth }}</div>
+                    <div class="form-group"><label for="id_lieu_naissance">Lieu de naissance</label>{{ form.lieu_naissance }}</div>
+                </div>
+                <div class="form-row"><div class="form-group"><label for="id_adresse">Adresse</label>{{ form.adresse }}</div></div>
+            </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:1.25rem;">
+            <div class="panel-head"><h3>🎓 Scolarité</h3></div>
+            <div class="panel-body">
+                <div class="form-row" style="grid-template-columns:1fr 1fr;">
+                    <div class="form-group">
+                        <label for="id_student_code">Matricule *</label>{{ form.student_code }}
+                        {% if form.student_code.errors %}<ul class="errorlist">{% for e in form.student_code.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    <div class="form-group"><label for="id_classe">Classe</label>{{ form.classe }}</div>
+                </div>
+                <div class="form-row" style="grid-template-columns:1fr 1fr;">
+                    <div class="form-group"><label for="id_section">Section</label>{{ form.section }}</div>
+                    <div class="form-group"><label for="id_annee_scolaire">Année scolaire</label>{{ form.annee_scolaire }}</div>
+                </div>
+                <div class="form-row" style="grid-template-columns:1fr 1fr;">
+                    <div class="form-group"><label for="id_date_inscription">Date d'inscription</label>{{ form.date_inscription }}</div>
+                    <div class="form-group"><label for="id_statut">Statut</label>{{ form.statut }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-head"><h3>👨‍👩‍👦 Parent / Tuteur</h3></div>
+            <div class="panel-body">
+                <div class="form-row" style="grid-template-columns:1fr 1fr;">
+                    <div class="form-group"><label for="id_parent_nom">Nom du parent / tuteur</label>{{ form.parent_nom }}</div>
+                    <div class="form-group"><label for="id_parent_telephone">Téléphone du parent</label>{{ form.parent_telephone }}</div>
+                </div>
+                <div class="form-row" style="grid-template-columns:1fr 1fr;">
+                    <div class="form-group"><label for="id_email">Email (élève)</label>{{ form.email }}</div>
+                    <div class="form-group"><label for="id_phone">Téléphone (élève)</label>{{ form.phone }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="panel" style="margin-bottom:1.25rem;">
+            <div class="panel-head"><h3>🖼 Photo de profil</h3></div>
+            <div class="panel-body">
+                {% if student.photo_profil %}
+                <div style="text-align:center; margin-bottom:0.75rem;">
+                    <img src="{{ student.photo_profil.url }}" alt="{{ student.full_name }}" style="max-height:140px; border-radius:8px; border:2px solid var(--border);">
+                </div>
+                {% endif %}
+                <div class="form-group"><label for="id_photo_profil">Changer la photo</label>{{ form.photo_profil }}</div>
+            </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:1.25rem;">
+            <div class="panel-head">
+                <h3>📸 Reconnaissance faciale</h3>
+                <span class="badge {% if student.photos.count >= 10 %}badge-green{% elif student.photos.count > 0 %}badge-yellow{% else %}badge-red{% endif %}">{{ student.photos.count }} photo(s)</span>
+            </div>
+            <div class="panel-body">
+                {% if student.nb_embeddings > 0 %}
+                <div style="padding:0.5rem; background:rgba(74,222,128,0.1); border:1px solid rgba(74,222,128,0.3); border-radius:6px; font-size:0.83rem; color:#4ade80; margin-bottom:0.75rem;">
+                    ✓ {{ student.nb_embeddings }} empreinte(s) stockée(s) — reconnaissance active
+                </div>
+                {% else %}
+                <div style="padding:0.5rem; background:rgba(234,179,8,0.1); border:1px solid rgba(234,179,8,0.3); border-radius:6px; font-size:0.83rem; color:#eab308; margin-bottom:0.75rem;">
+                    ⚠ Aucune empreinte — ajoutez des photos depuis la fiche élève
+                </div>
+                {% endif %}
+                <a href="{% url 'attendance:student_detail' student.id %}#photos" class="button secondary sm">Gérer les photos</a>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:0.75rem;">
+            <button class="button primary" type="submit" style="flex:1;">✅ Enregistrer</button>
+            <a href="{% url 'attendance:student_detail' student.id %}" class="button secondary">Annuler</a>
+        </div>
+    </div>
+</div>
+</form>
+{% endblock %}

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Salles — UniPresence{% endblock %}
+{% block page_title %}Salles de cours{% endblock %}
+
+{% block content %}
+
+<div class="grid-2" style="align-items:start;">
+
+    <div class="panel">
+        <div class="panel-head"><h3>Ajouter une salle</h3></div>
+        <div class="panel-body">
+            <form method="post">
+                {% csrf_token %}
+                {% if form.non_field_errors %}
+                <div class="message error" style="margin-bottom:0.75rem;">
+                    {% for e in form.non_field_errors %}{{ e }}{% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="form-row" style="grid-template-columns:1fr 1fr;">
+                    <div class="form-group">
+                        <label for="id_nom">Nom de la salle *</label>
+                        {{ form.nom }}
+                        {% if form.nom.errors %}<ul class="errorlist">{% for e in form.nom.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_batiment">Batiment</label>
+                        {{ form.batiment }}
+                    </div>
+                </div>
+                <div class="form-row" style="grid-template-columns:1fr 1fr;">
+                    <div class="form-group">
+                        <label for="id_capacite">Capacite (etudiants)</label>
+                        {{ form.capacite }}
+                    </div>
+                    <div class="form-group" style="flex-direction:row; align-items:center; gap:0.5rem; padding-top:1.5rem;">
+                        {{ form.is_active }}
+                        <label for="id_is_active" style="margin:0; cursor:pointer;">Active</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="id_description">Description</label>
+                    {{ form.description }}
+                </div>
+                <button class="button primary" type="submit">Ajouter la salle</button>
+            </form>
+        </div>
+    </div>
+
+    <div>
+        {% if salles %}
+        <div class="panel">
+            <div class="panel-head">
+                <h3>{{ salles.count }} salle(s)</h3>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Salle</th>
+                            <th>Batiment</th>
+                            <th>Capacite</th>
+                            <th>Cameras</th>
+                            <th>Horaires</th>
+                            <th>Statut</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for salle in salles %}
+                        <tr>
+                            <td style="font-weight:600;">{{ salle.nom }}</td>
+                            <td style="color:var(--muted);">{{ salle.batiment|default:"—" }}</td>
+                            <td style="color:var(--muted);">{{ salle.capacite }} pl.</td>
+                            <td>
+                                {% if salle.nb_cameras > 0 %}
+                                <span class="badge badge-green">{{ salle.nb_cameras }} cam.</span>
+                                {% else %}
+                                <span style="color:var(--muted);">—</span>
+                                {% endif %}
+                            </td>
+                            <td style="color:var(--muted);">{{ salle.nb_horaires }}</td>
+                            <td>
+                                {% if salle.is_active %}
+                                <span class="badge badge-green">Active</span>
+                                {% else %}
+                                <span class="badge badge-muted">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td style="text-align:right;">
+                                <form method="post" action="{% url 'attendance:salle_delete' salle.id %}"
+                                      onsubmit="return confirm('Supprimer la salle {{ salle.nom }} ?');">
+                                    {% csrf_token %}
+                                    <button class="button danger sm" type="submit"
+                                            {% if salle.nb_cameras > 0 or salle.nb_horaires > 0 %}
+                                            title="Deliez les cameras et horaires avant de supprimer"
+                                            {% endif %}>Supprimer</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="panel">
+            <div class="empty-state">Aucune salle enregistree. Ajoutez vos salles pour les lier aux horaires et cameras.</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

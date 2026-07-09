@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Cameras — UniPresence{% endblock %}
+{% block page_title %}Gestion des cameras{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'attendance:camera_monitor' %}" class="button primary sm">&#9680; Ouvrir Moniteur Live</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="grid-2" style="align-items:start;">
+
+    <div class="panel">
+        <div class="panel-head"><h3>Ajouter une camera</h3></div>
+        <div class="panel-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Nom *</label>
+                        {{ form.name }}
+                    </div>
+                </div>
+                <div class="form-row" style="grid-template-columns:1fr 1fr;">
+                    <div class="form-group">
+                        <label>Type *</label>
+                        {{ form.camera_type }}
+                    </div>
+                    <div class="form-group">
+                        <label>Emplacement</label>
+                        {{ form.location }}
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Source</label>
+                        {{ form.source }}
+                        <span class="form-help">Vide = webcam navigateur &nbsp;|&nbsp; 0 ou 1 = USB &nbsp;|&nbsp; rtsp://192.168.x.x:554/stream = IP</span>
+                    </div>
+                </div>
+                <div class="form-row" style="grid-template-columns:1fr 1fr;">
+                    <div class="form-group">
+                        <label>Resolution (px)</label>
+                        <div style="display:flex; gap:0.4rem; align-items:center;">
+                            {{ form.resolution_w }}
+                            <span style="color:var(--muted);">×</span>
+                            {{ form.resolution_h }}
+                        </div>
+                    </div>
+                    <div class="form-group" style="justify-content:flex-end; flex-direction:row; align-items:center; gap:0.5rem;">
+                        {{ form.is_active }}
+                        <label style="margin:0; cursor:pointer;">Active</label>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Notes</label>
+                        {{ form.notes }}
+                    </div>
+                </div>
+                <button class="button primary" type="submit">Ajouter la camera</button>
+            </form>
+        </div>
+    </div>
+
+    <div>
+
+        <!-- Monitor shortcut banner -->
+        <div style="margin-bottom:1rem; padding:0.75rem 1rem; background:#0f1623; border:1px solid #1e2433; display:flex; align-items:center; gap:1rem;">
+            <div style="flex:1;">
+                <div style="font-weight:700; color:#f1f5f9; font-size:0.85rem;">Moniteur multi-cameras</div>
+                <div style="font-size:0.75rem; color:#64748b; margin-top:0.1rem;">Affichage temps reel de toutes vos cameras actives dans une interface plein ecran.</div>
+            </div>
+            <a href="{% url 'attendance:camera_monitor' %}" class="button primary sm" style="flex-shrink:0;">&#9680; Ouvrir le Moniteur Live</a>
+        </div>
+
+        {% if cameras %}
+        {% for camera in cameras %}
+        <div class="panel" style="margin-bottom:1rem;">
+            <div class="panel-head">
+                <h3 style="display:flex; align-items:center; gap:0.5rem;">
+                    <span style="width:8px; height:8px; display:inline-block; {% if camera.is_active %}background:var(--success);{% else %}background:var(--muted);{% endif %}"></span>
+                    {{ camera.name }}
+                </h3>
+                <div style="display:flex; gap:0.5rem;">
+                    {% if camera.camera_type == 'webcam' %}
+                    <a href="{% url 'attendance:camera_live' camera.id %}" class="button primary sm">&#9673; Live solo</a>
+                    {% else %}
+                    <a href="{% url 'attendance:camera_live' camera.id %}" class="button secondary sm">&#9673; Voir</a>
+                    {% endif %}
+                    <a href="{% url 'attendance:camera_monitor' %}" class="button secondary sm">&#9680; Moniteur</a>
+                    <a href="{% url 'attendance:camera_edit' camera.id %}" class="button secondary sm">Modifier</a>
+                </div>
+            </div>
+            <div style="padding:0.65rem 1rem; display:flex; gap:2rem; font-size:0.82rem; flex-wrap:wrap;">
+                <div>
+                    <span style="color:var(--muted); font-size:0.7rem; text-transform:uppercase; font-weight:700;">Type</span><br>
+                    <span class="badge {% if camera.camera_type == 'webcam' %}badge-blue{% elif camera.camera_type == 'rtsp' %}badge-green{% else %}badge-yellow{% endif %}">
+                        {{ camera.get_camera_type_display }}
+                    </span>
+                </div>
+                <div>
+                    <span style="color:var(--muted); font-size:0.7rem; text-transform:uppercase; font-weight:700;">Source</span><br>
+                    <code style="font-size:0.78rem;">{{ camera.source_display }}</code>
+                </div>
+                {% if camera.location %}
+                <div>
+                    <span style="color:var(--muted); font-size:0.7rem; text-transform:uppercase; font-weight:700;">Emplacement</span><br>
+                    {{ camera.location }}
+                </div>
+                {% endif %}
+                <div>
+                    <span style="color:var(--muted); font-size:0.7rem; text-transform:uppercase; font-weight:700;">Resolution</span><br>
+                    {{ camera.resolution_w }}×{{ camera.resolution_h }}
+                </div>
+                <div style="margin-left:auto; display:flex; align-items:center;">
+                    <form method="post" action="{% url 'attendance:camera_delete' camera.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="button secondary sm" style="color:var(--danger);"
+                                onclick="return confirm('Supprimer {{ camera.name }} ?');">Supprimer</button>
+                    </form>
+                </div>
+            </div>
+            {% if camera.notes %}
+            <div style="padding:0 1rem 0.65rem; font-size:0.78rem; color:var(--muted);">{{ camera.notes }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state">
+            Aucune camera configuree.<br>
+            Ajoutez une camera a gauche pour commencer la reconnaissance en direct.
+        </div>
+        {% endif %}
+
+        <div class="panel">
+            <div class="panel-head"><h3>Guide types de cameras</h3></div>
+            <div class="panel-body" style="font-size:0.83rem; line-height:1.9; color:var(--muted);">
+                <p><strong style="color:var(--text);">&#9673; Webcam navigateur</strong> — Camera de votre PC/laptop. Aucune config serveur. Fonctionne immediatement sur Replit.</p>
+                <p><strong style="color:var(--text);">&#128247; Camera USB</strong> — Camera branchee au serveur. Entrez l'index (0 = premiere, 1 = deuxieme…). Serveur local uniquement.</p>
+                <p><strong style="color:var(--text);">&#127760; Camera IP (RTSP)</strong> — Camera reseau professionnelle. URL : <code>rtsp://192.168.1.x:554/stream</code>. Ideale pour une universite.</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

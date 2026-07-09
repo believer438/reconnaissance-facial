@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Configuration systeme — UniPresence{% endblock %}
+{% block page_title %}Configuration du systeme{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'attendance:detection_events' %}" class="button secondary sm">&#128196; Evenements bruts</a>
+{% endblock %}
+
+{% block content %}
+
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem;">
+
+    <!-- Regles temporelles -->
+    <div class="panel">
+        <div class="panel-head"><h3>&#128336; Regles temporelles</h3></div>
+        <div class="panel-body" style="padding:1.25rem;">
+            <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem; line-height:1.6;">
+                Ces valeurs controlent le comportement du systeme pour la detection des retards,
+                la fenetre pre-cours, et le cooldown anti-doublons.
+                Les valeurs s'appliquent uniquement si elles ne sont pas surpassees au niveau de l'horaire.
+            </p>
+            <table style="width:100%; font-size:0.85rem; border-collapse:collapse;">
+                <tr><td style="padding:0.4rem 0; color:var(--muted);">Tolerance retard</td><td style="font-weight:700; text-align:right;">{{ config.retard_minutes }} min</td></tr>
+                <tr><td style="padding:0.4rem 0; color:var(--muted);">Fenetre pre-cours</td><td style="font-weight:700; text-align:right;">{{ config.ouverture_avant_minutes }} min</td></tr>
+                <tr><td style="padding:0.4rem 0; color:var(--muted);">Cooldown anti-doublon</td><td style="font-weight:700; text-align:right;">{{ config.cooldown_detection_minutes }} min</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- Reconnaissance faciale -->
+    <div class="panel">
+        <div class="panel-head"><h3>&#128065; Reconnaissance faciale</h3></div>
+        <div class="panel-body" style="padding:1.25rem;">
+            <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem; line-height:1.6;">
+                Le seuil LBPH est la distance maximale acceptee. Plus la valeur est basse, plus
+                le systeme est strict. Recommande : entre 50 et 70.
+                Le filtrage par classe garantit qu'un etudiant ne peut pas etre marque dans une session
+                d'une autre classe.
+            </p>
+            <table style="width:100%; font-size:0.85rem; border-collapse:collapse;">
+                <tr><td style="padding:0.4rem 0; color:var(--muted);">Seuil distance LBPH</td><td style="font-weight:700; text-align:right;">{{ config.seuil_distance_lbph }}</td></tr>
+                <tr><td style="padding:0.4rem 0; color:var(--muted);">Filtrage par classe</td><td style="font-weight:700; text-align:right;">{% if config.filtrer_par_classe %}<span style="color:var(--success);">Actif</span>{% else %}<span style="color:var(--muted);">Inactif</span>{% endif %}</td></tr>
+                <tr><td style="padding:0.4rem 0; color:var(--muted);">Archiver events bruts</td><td style="font-weight:700; text-align:right;">{% if config.archiver_evenements_bruts %}<span style="color:var(--success);">Actif</span>{% else %}<span style="color:var(--muted);">Inactif</span>{% endif %}</td></tr>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<div class="panel">
+    <div class="panel-head"><h3>Modifier la configuration</h3></div>
+    <div class="panel-body" style="padding:1.5rem;">
+        <form method="post">
+            {% csrf_token %}
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem;">
+
+                <!-- Col 1 : Reglages numeriques -->
+                <div>
+                    <h4 style="font-size:0.8rem; text-transform:uppercase; color:var(--muted); letter-spacing:0.05em; margin-bottom:1rem;">Regles temporelles</h4>
+
+                    <div class="form-group">
+                        <label>{{ form.retard_minutes.label }}</label>
+                        {{ form.retard_minutes }}
+                        <span style="font-size:0.72rem; color:var(--muted);">{{ form.retard_minutes.help_text }}</span>
+                    </div>
+                    <div class="form-group">
+                        <label>{{ form.ouverture_avant_minutes.label }}</label>
+                        {{ form.ouverture_avant_minutes }}
+                        <span style="font-size:0.72rem; color:var(--muted);">{{ form.ouverture_avant_minutes.help_text }}</span>
+                    </div>
+                    <div class="form-group">
+                        <label>{{ form.cooldown_detection_minutes.label }}</label>
+                        {{ form.cooldown_detection_minutes }}
+                        <span style="font-size:0.72rem; color:var(--muted);">{{ form.cooldown_detection_minutes.help_text }}</span>
+                    </div>
+                    <div class="form-group">
+                        <label>{{ form.seuil_alerte_absences.label }}</label>
+                        {{ form.seuil_alerte_absences }}
+                        <span style="font-size:0.72rem; color:var(--muted);">{{ form.seuil_alerte_absences.help_text }}</span>
+                    </div>
+                </div>
+
+                <!-- Col 2 : Reconnaissance + booleans -->
+                <div>
+                    <h4 style="font-size:0.8rem; text-transform:uppercase; color:var(--muted); letter-spacing:0.05em; margin-bottom:1rem;">Reconnaissance faciale</h4>
+
+                    <div class="form-group">
+                        <label>{{ form.seuil_distance_lbph.label }}</label>
+                        {{ form.seuil_distance_lbph }}
+                        <span style="font-size:0.72rem; color:var(--muted);">{{ form.seuil_distance_lbph.help_text }}</span>
+                    </div>
+
+                    <div class="form-group" style="margin-top:1rem;">
+                        <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer; font-size:0.88rem; text-transform:none; letter-spacing:0;">
+                            {{ form.filtrer_par_classe }}
+                            <span>{{ form.filtrer_par_classe.label }}</span>
+                        </label>
+                        <span style="font-size:0.72rem; color:var(--muted);">{{ form.filtrer_par_classe.help_text }}</span>
+                    </div>
+
+                    <div class="form-group" style="margin-top:0.75rem;">
+                        <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer; font-size:0.88rem; text-transform:none; letter-spacing:0;">
+                            {{ form.archiver_evenements_bruts }}
+                            <span>{{ form.archiver_evenements_bruts.label }}</span>
+                        </label>
+                        <span style="font-size:0.72rem; color:var(--muted);">{{ form.archiver_evenements_bruts.help_text }}</span>
+                    </div>
+
+                    <div style="margin-top:2rem;">
+                        <button class="button primary" type="submit">Enregistrer la configuration</button>
+                    </div>
+                </div>
+
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="panel" style="margin-top:1.5rem; background:rgba(59,130,246,0.05); border-color:rgba(59,130,246,0.2);">
+    <div class="panel-head"><h3>&#128204; Pourquoi configurer ces parametres ?</h3></div>
+    <div class="panel-body" style="padding:1.25rem;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; font-size:0.82rem; color:var(--muted); line-height:1.7;">
+            <div>
+                <strong style="color:var(--text);">Tolerance retard</strong><br>
+                Definit combien de minutes apres le debut du cours un etudiant est encore marque "Present" plutot que "Retard".
+                Exemple : 15 min → arrive a debut+14 min = Present ; debut+16 min = Retard.
+            </div>
+            <div>
+                <strong style="color:var(--text);">Fenetre pre-cours</strong><br>
+                Autorise la detection X minutes avant le debut officiel du cours.
+                Utile pour les etudiants qui arrivent tot. En dehors de cette fenetre, la detection est rejetee.
+            </div>
+            <div>
+                <strong style="color:var(--text);">Seuil LBPH</strong><br>
+                Distance maximale acceptee par le modele LBPH. Plus strict (valeur basse) = moins de faux positifs
+                mais risque de ne pas reconnaitre les etudiants avec lunettes, masque, ou mauvais eclairage.
+            </div>
+            <div>
+                <strong style="color:var(--text);">Filtrage par classe</strong><br>
+                Si actif, un etudiant de la Classe A ne peut pas etre marque dans une session de la Classe B.
+                Fortement recommande pour eviter les fraudes entre classes.
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

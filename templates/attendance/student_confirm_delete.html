@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Supprimer {{ student.full_name }} — UniPresence{% endblock %}
+{% block page_title %}Confirmer la suppression{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'attendance:student_detail' student.id %}" class="button secondary sm">&larr; Retour</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel" style="max-width:480px;">
+    <div class="panel-head">
+        <h3>Confirmer la suppression</h3>
+    </div>
+    <div class="panel-body">
+        <p style="margin-bottom:1rem;">
+            Voulez-vous vraiment supprimer <strong>{{ student.full_name }}</strong>
+            ({{ student.student_code }}) ?
+        </p>
+        <p style="color:var(--danger); font-size:0.85rem; margin-bottom:1.5rem;">
+            Cette action supprimera egalement toutes les photos d'entrainement et les enregistrements de presence associes. Elle est irreversible.
+        </p>
+        <form method="post" style="display:flex; gap:0.75rem;">
+            {% csrf_token %}
+            <button class="button primary" style="background:var(--danger); border-color:var(--danger);" type="submit">Supprimer definitivement</button>
+            <a href="{% url 'attendance:student_detail' student.id %}" class="button secondary">Annuler</a>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

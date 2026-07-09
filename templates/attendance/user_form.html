@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}{% if is_create %}Nouvel utilisateur{% else %}Modifier {{ target_user.username }}{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">
+        {% if is_create %}+ Nouvel utilisateur{% else %}✏ Modifier {{ target_user.username }}{% endif %}
+    </h1>
+    <p class="page-subtitle">
+        {% if is_create %}Créer un compte et définir son rôle (Admin / Enseignant / Secrétariat){% else %}Modifier les informations et le rôle du compte{% endif %}
+    </p>
+</div>
+
+{% if messages %}
+<div style="margin-bottom:1rem;">
+    {% for msg in messages %}
+    <div class="alert {% if msg.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">{{ msg }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div style="max-width:600px;">
+    <div class="card">
+        <form method="post" autocomplete="off">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-error" style="margin-bottom:1rem;">
+                {% for err in form.non_field_errors %}{{ err }}{% endfor %}
+            </div>
+            {% endif %}
+
+            {% if is_create %}
+            <div class="form-group">
+                <label class="form-label">Nom d'utilisateur *</label>
+                {{ form.username }}
+                {% if form.username.errors %}<div class="form-error">{{ form.username.errors.0 }}</div>{% endif %}
+            </div>
+            {% else %}
+            <div class="form-group">
+                <label class="form-label">Nom d'utilisateur</label>
+                <input type="text" value="{{ target_user.username }}" class="form-input" disabled style="opacity:0.6;">
+                <div style="font-size:0.75rem; color:var(--muted); margin-top:0.3rem;">Le nom d'utilisateur ne peut pas être modifié.</div>
+            </div>
+            {% endif %}
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                <div class="form-group">
+                    <label class="form-label">Prénom</label>
+                    {{ form.first_name }}
+                    {% if form.first_name.errors %}<div class="form-error">{{ form.first_name.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Nom</label>
+                    {{ form.last_name }}
+                    {% if form.last_name.errors %}<div class="form-error">{{ form.last_name.errors.0 }}</div>{% endif %}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Adresse email</label>
+                {{ form.email }}
+                {% if form.email.errors %}<div class="form-error">{{ form.email.errors.0 }}</div>{% endif %}
+            </div>
+
+            {% if is_create %}
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                <div class="form-group">
+                    <label class="form-label">Mot de passe *</label>
+                    {{ form.password1 }}
+                    {% if form.password1.errors %}<div class="form-error">{{ form.password1.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Confirmer *</label>
+                    {{ form.password2 }}
+                    {% if form.password2.errors %}<div class="form-error">{{ form.password2.errors.0 }}</div>{% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Rôle métier -->
+            <div style="border-top:1px solid var(--border); padding-top:1rem; margin-top:0.75rem;">
+                <div class="form-label" style="margin-bottom:0.75rem;">🎭 Rôle dans l'établissement</div>
+                <div class="form-group">
+                    {{ form.role }}
+                    <span class="form-help">Le rôle détermine ce que l'utilisateur peut faire dans l'application.</span>
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:0.5rem; margin-top:0.5rem; font-size:0.75rem; color:var(--muted);">
+                    <div style="padding:0.4rem; background:rgba(220,38,38,0.08); border-radius:4px; border:1px solid rgba(220,38,38,0.2);">
+                        <strong style="color:#dc2626;">🔴 Admin</strong><br>Accès complet, formation IA, configuration
+                    </div>
+                    <div style="padding:0.4rem; background:rgba(59,130,246,0.08); border-radius:4px; border:1px solid rgba(59,130,246,0.2);">
+                        <strong style="color:#3b82f6;">🔵 Enseignant</strong><br>Voir présences et élèves uniquement
+                    </div>
+                    <div style="padding:0.4rem; background:rgba(234,179,8,0.08); border-radius:4px; border:1px solid rgba(234,179,8,0.2);">
+                        <strong style="color:#eab308;">🟡 Secrétariat</strong><br>Gérer élèves et présences, pas la config
+                    </div>
+                </div>
+            </div>
+
+            <!-- Permissions Django (superuser seulement) -->
+            <div style="border-top:1px solid var(--border); padding-top:1rem; margin-top:0.75rem;">
+                <div class="form-label" style="margin-bottom:0.75rem; color:var(--muted);">Permissions système (avancé)</div>
+                <div style="display:flex; flex-direction:column; gap:0.5rem;">
+                    <label style="display:flex; align-items:center; gap:0.6rem; cursor:pointer;">
+                        {{ form.is_staff }}
+                        <span style="font-size:0.85rem;">
+                            <strong>Accès admin Django</strong>
+                            <span style="color:var(--muted); font-size:0.78rem; margin-left:0.3rem;">— accès à /facial/admin/</span>
+                        </span>
+                    </label>
+                    <label style="display:flex; align-items:center; gap:0.6rem; cursor:pointer;">
+                        {{ form.is_superuser }}
+                        <span style="font-size:0.85rem;">
+                            <strong>Super-administrateur</strong>
+                            <span style="color:var(--muted); font-size:0.78rem; margin-left:0.3rem;">— accès complet Django</span>
+                        </span>
+                    </label>
+                    {% if not is_create %}
+                    <label style="display:flex; align-items:center; gap:0.6rem; cursor:pointer;">
+                        {{ form.is_active }}
+                        <span style="font-size:0.85rem;">
+                            <strong>Compte actif</strong>
+                            <span style="color:var(--muted); font-size:0.78rem; margin-left:0.3rem;">— décocher pour bloquer</span>
+                        </span>
+                    </label>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div style="display:flex; gap:0.75rem; margin-top:1.5rem;">
+                <button type="submit" class="btn btn-primary" style="flex:1;">
+                    {% if is_create %}+ Créer l'utilisateur{% else %}✅ Enregistrer{% endif %}
+                </button>
+                <a href="{% url 'attendance:user_list' %}" class="btn btn-secondary">Annuler</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Supprimer {{ camera.name }} — UniPresence{% endblock %}
+{% block page_title %}Supprimer la camera{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'attendance:camera_list' %}" class="button secondary sm">&larr; Cameras</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel" style="max-width:480px;">
+    <div class="panel-head"><h3>Confirmer la suppression</h3></div>
+    <div class="panel-body">
+        <p style="margin-bottom:0.75rem;">
+            Supprimer la camera <strong>{{ camera.name }}</strong> ({{ camera.get_camera_type_display }}) ?
+        </p>
+        <p style="color:var(--muted); font-size:0.85rem; margin-bottom:1.5rem;">
+            Les enregistrements de presence lies a cette camera seront conserves mais la reference camera sera effacee.
+        </p>
+        <form method="post" style="display:flex; gap:0.75rem;">
+            {% csrf_token %}
+            <button class="button primary" style="background:var(--danger); border-color:var(--danger);" type="submit">Supprimer</button>
+            <a href="{% url 'attendance:camera_list' %}" class="button secondary">Annuler</a>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

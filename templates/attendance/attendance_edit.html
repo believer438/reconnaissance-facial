@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier la presence — UniPresence{% endblock %}
+{% block page_title %}Modification manuelle de presence{% endblock %}
+
+{% block topbar_actions %}
+{% if record.course_session %}
+<a href="{% url 'attendance:session_detail' record.course_session.id %}" class="button secondary sm">&larr; Retour a la session</a>
+{% else %}
+<a href="{% url 'attendance:attendance_list' %}" class="button secondary sm">&larr; Retour aux presences</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div class="grid-2" style="align-items:start;">
+
+    <div>
+        <!-- Informations sur l'enregistrement -->
+        <div class="panel" style="margin-bottom:1.5rem;">
+            <div class="panel-head"><h3>Enregistrement concerne</h3></div>
+            <div class="panel-body" style="font-size:0.88rem; line-height:2;">
+                <div><span style="color:var(--muted);">Etudiant :</span> <strong>{{ record.student_name_snapshot }}</strong></div>
+                <div><span style="color:var(--muted);">Classe :</span> {{ record.classroom_snapshot|default:"—" }}</div>
+                {% if record.course_session %}
+                <div><span style="color:var(--muted);">Cours :</span> {{ record.course_session.course.code }} — {{ record.course_session.course.name }}</div>
+                <div><span style="color:var(--muted);">Session :</span> {{ record.course_session.date|date:"d/m/Y" }} {{ record.course_session.start_time }}</div>
+                {% endif %}
+                <div><span style="color:var(--muted);">Detecte le :</span> {{ record.recognized_at|date:"d/m/Y a H:i" }}</div>
+                <div><span style="color:var(--muted);">Confiance :</span>
+                    {% if record.confidence_score %}{{ record.confidence_score|floatformat:1 }}%{% else %}—{% endif %}
+                </div>
+                <div><span style="color:var(--muted);">Source :</span> {{ record.source }}</div>
+                <div><span style="color:var(--muted);">Statut actuel :</span>
+                    {% if record.status == 'present' %}<span class="badge badge-green">Present</span>
+                    {% elif record.status == 'late' %}<span class="badge badge-yellow">Retard</span>
+                    {% elif record.status == 'absent' %}<span class="badge badge-red">Absent</span>
+                    {% elif record.status == 'excuse' %}<span class="badge badge-blue">Excuse</span>
+                    {% else %}<span class="badge badge-muted">{{ record.get_status_display }}</span>{% endif %}
+                </div>
+                {% if record.modified_by %}
+                <div><span style="color:var(--muted);">Derniere modification par :</span> {{ record.modified_by }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Formulaire de modification -->
+        <div class="panel">
+            <div class="panel-head"><h3>Modifier le statut</h3></div>
+            <div class="panel-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                    <div class="message error" style="margin-bottom:0.75rem;">
+                        {% for e in form.non_field_errors %}{{ e }}{% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="form-group">
+                        <label for="id_nouveau_statut">Nouveau statut *</label>
+                        {{ form.nouveau_statut }}
+                        {% if form.nouveau_statut.errors %}<ul class="errorlist">{% for e in form.nouveau_statut.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+
+                    <div class="form-group" id="justif-section">
+                        <label for="id_excuse_reason">Type de justificatif</label>
+                        {{ form.excuse_reason }}
+                        <span class="form-help">Requis si statut = Excuse/Justifie</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="id_excuse_notes">Notes justificatif</label>
+                        {{ form.excuse_notes }}
+                    </div>
+
+                    <div class="form-row" style="grid-template-columns:1fr 1fr;">
+                        <div class="form-group">
+                            <label for="id_modifie_par">Modifie par *</label>
+                            {{ form.modifie_par }}
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="id_raison">Raison de la modification</label>
+                        {{ form.raison }}
+                        <span class="form-help">Sera consigne dans le journal d'audit pour tracabilite.</span>
+                    </div>
+
+                    <div style="display:flex; gap:0.75rem; margin-top:1rem;">
+                        <button class="button primary" type="submit">Enregistrer la modification</button>
+                        {% if record.course_session %}
+                        <a href="{% url 'attendance:session_detail' record.course_session.id %}" class="button secondary">Annuler</a>
+                        {% else %}
+                        <a href="{% url 'attendance:attendance_list' %}" class="button secondary">Annuler</a>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Journal d'audit -->
+    <div class="panel">
+        <div class="panel-head"><h3>Journal d'audit</h3></div>
+        {% if audit_logs %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>Date</th><th>Modifie par</th><th>Ancien</th><th>Nouveau</th><th>Raison</th></tr>
+                </thead>
+                <tbody>
+                    {% for log in audit_logs %}
+                    <tr>
+                        <td style="white-space:nowrap; font-size:0.78rem; color:var(--muted);">{{ log.date_modification|date:"d/m/Y H:i" }}</td>
+                        <td style="font-weight:600;">{{ log.modifie_par }}</td>
+                        <td>
+                            {% if log.ancienne_valeur == 'present' %}<span class="badge badge-green">Present</span>
+                            {% elif log.ancienne_valeur == 'late' %}<span class="badge badge-yellow">Retard</span>
+                            {% elif log.ancienne_valeur == 'absent' %}<span class="badge badge-red">Absent</span>
+                            {% elif log.ancienne_valeur == 'excuse' %}<span class="badge badge-blue">Excuse</span>
+                            {% else %}<span class="badge badge-muted">{{ log.ancienne_valeur }}</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if log.nouvelle_valeur == 'present' %}<span class="badge badge-green">Present</span>
+                            {% elif log.nouvelle_valeur == 'late' %}<span class="badge badge-yellow">Retard</span>
+                            {% elif log.nouvelle_valeur == 'absent' %}<span class="badge badge-red">Absent</span>
+                            {% elif log.nouvelle_valeur == 'excuse' %}<span class="badge badge-blue">Excuse</span>
+                            {% else %}<span class="badge badge-muted">{{ log.nouvelle_valeur }}</span>{% endif %}
+                        </td>
+                        <td style="font-size:0.8rem; color:var(--muted);">{{ log.raison|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">Aucune modification precedente — premier audit.</div>
+        {% endif %}
+    </div>
+
+</div>
+
+<style>
+.badge-blue { background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3); padding:0.15rem 0.5rem; border-radius:4px; font-size:0.72rem; font-weight:700; }
+</style>
+
+{% endblock %}

@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block title %}Tableau de bord — SecPresence{% endblock %}
+{% block page_title %}Tableau de bord{% endblock %}
+
+{% block topbar_actions %}
+<form method="post" action="{% url 'attendance:rebuild_embeddings' %}" style="display:inline"
+      onsubmit="return confirm('Recalculer tous les embeddings ? Cette opération peut prendre quelques secondes.')">
+    {% csrf_token %}
+    <button class="button secondary sm" type="submit" title="Recalcule les signatures de visage depuis les photos stockées">&#8635; Visages</button>
+</form>
+<a href="{% url 'attendance:camera_monitor' %}" target="_blank" class="button primary sm">&#9680; Live cam</a>
+{% endblock %}
+
+{% block content %}
+
+{% if auj_ferie %}
+<div class="message warning" style="margin-bottom:1rem;">
+    &#9888; <strong>Aujourd'hui est un jour ferie :</strong> {{ auj_ferie.nom }}.
+</div>
+{% endif %}
+
+<div class="status-bar">
+    <div class="status-item" style="color:{% if embedding_total > 0 %}#22c55e{% else %}var(--warning){% endif %};">
+        <span class="status-dot {% if embedding_total > 0 %}ready{% else %}warn{% endif %}"></span>
+        <span>Visages : <strong>{{ embedding_total }}</strong></span>
+    </div>
+    {% if prochain_ferie %}
+    <div class="status-item" style="color:var(--muted); font-size:0.75rem;">
+        Prochain ferie : <strong>{{ prochain_ferie.nom }}</strong> ({{ prochain_ferie.date|date:"d/m/Y" }})
+    </div>
+    {% endif %}
+    <div class="status-item" style="margin-left:auto; font-size:0.75rem; color:var(--muted);">
+        Aujourd'hui : <strong>{{ today_present }}</strong> present(s) &middot; <strong>{{ today_late }}</strong> retard(s) &middot; <strong>{{ today_absent }}</strong> absent(s)
+        {% if today_excuse > 0 %}&middot; <strong>{{ today_excuse }}</strong> excuse(s){% endif %}
+    </div>
+</div>
+
+<!-- Presence journaliere ecole secondaire -->
+<div class="panel" style="margin-bottom:1rem; border-color:rgba(59,130,246,0.25);">
+    <div class="panel-head" style="align-items:flex-start; gap:1rem;">
+        <div>
+            <h3>&#127979; Presence journaliere</h3>
+            <div style="font-size:0.78rem; color:var(--muted); margin-top:0.25rem;">
+                {% if daily_block_reason %}
+                {{ daily_block_reason }}
+                {% else %}
+                Present jusqu'a {{ day_config.heure_limite_arrivee|time:"H:i" }} &middot;
+                Retard jusqu'a {{ day_config.heure_fin_cours|time:"H:i" }} &middot;
+                Apres fin des cours: signale hors delai, non enregistre
+                {% endif %}
+            </div>
+        </div>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <a href="{% url 'attendance:daily_attendance_list' %}" class="button secondary sm">Liste du jour</a>
+            <form method="post" action="{% url 'attendance:daily_generate_absents' %}" style="margin:0;">
+                {% csrf_token %}
+                <button type="submit" class="button secondary sm"
+                    onclick="return confirm(&quot;Marquer absent tous les eleves non enregistres aujourd'hui ? Cette action doit se faire apres la fin des cours.&quot;)">
+                    Generer absences
+                </button>
+            </form>
+        </div>
+    </div>
+    <div class="stats-grid" style="grid-template-columns:repeat(5,1fr); margin:1rem;">
+        <div class="stat-card">
+            <div class="label">Presents</div>
+            <div class="value" style="color:var(--success);">{{ today_present }}</div>
+            <div class="sub">a l'heure</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Retards</div>
+            <div class="value" style="color:var(--warning);">{{ today_late }}</div>
+            <div class="sub">apres limite</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Absents</div>
+            <div class="value" style="color:var(--danger);">{{ today_absent }}</div>
+            <div class="sub">generes ou manuels</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Non enregistres</div>
+            <div class="value">{{ daily_non_enregistres }}</div>
+            <div class="sub">pas encore marques</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Taux</div>
+            <div class="value">{{ daily_taux_presence }}%</div>
+            <div class="sub">present + retard + excuse</div>
+        </div>
+    </div>
+    <div style="display:grid; grid-template-columns:1.4fr 1fr; gap:1rem; margin:0 1rem 1rem;">
+        <div class="panel" style="margin:0;">
+            <div class="panel-head"><h3>Dernieres arrivees</h3></div>
+            {% if daily_recent_arrivals %}
+            <div class="table-wrap">
+                <table class="attendance-table-compact">
+                    <thead><tr><th>Eleve</th><th>Classe</th><th>Statut</th><th>Heure</th></tr></thead>
+                    <tbody>
+                        {% for rec in daily_recent_arrivals %}
+                        <tr>
+                            <td><a href="{% url 'attendance:student_detail' rec.student.id %}" style="font-weight:600;">{{ rec.student.full_name }}</a></td>
+                            <td style="color:var(--muted); font-size:0.78rem;">{{ rec.student.classe_display }}</td>
+                            <td><span class="badge {{ rec.status_badge_class }}">{{ rec.get_status_display }}</span></td>
+                            <td style="font-family:monospace; color:var(--muted);">{{ rec.heure_entree|time:"H:i:s" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">Aucune arrivee enregistree aujourd'hui.</div>
+            {% endif %}
+        </div>
+        <div class="panel" style="margin:0;">
+            <div class="panel-head"><h3>Cameras entree</h3></div>
+            <div class="panel-body" style="display:flex; flex-direction:column; gap:0.5rem;">
+                {% for cam in daily_check_in_cameras %}
+                <div class="badge badge-green" style="align-self:flex-start;">CHECK-IN: {{ cam.name }}</div>
+                {% empty %}
+                <div class="badge badge-yellow" style="align-self:flex-start;">Aucune camera CHECK-IN</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alertes absences -->
+{% if students_en_alerte %}
+<div class="panel" style="margin-bottom:1rem; border-color:rgba(239,68,68,0.3);">
+    <div class="panel-head" style="background:rgba(239,68,68,0.08);">
+        <h3 style="color:#ef4444;">&#9888; Alerte absences — {{ students_en_alerte|length }} etudiant(s) avec {{ seuil_absences }}+ absences</h3>
+        <a href="{% url 'attendance:reports' %}" class="button secondary sm">Voir rapport complet</a>
+    </div>
+    <div class="table-wrap">
+        <table class="attendance-table-compact">
+            <thead><tr><th>Etudiant</th><th>Classe</th><th>Absences</th><th></th></tr></thead>
+            <tbody>
+                {% for s in students_en_alerte %}
+                <tr>
+                    <td><a href="{% url 'attendance:student_detail' s.id %}" style="font-weight:600;">{{ s.full_name }}</a></td>
+                    <td style="color:var(--muted); font-size:0.78rem;">{{ s.classe_display }}</td>
+                    <td><span class="badge badge-red">{{ s.nb_absences }} absent(s)</span></td>
+                    <td><a href="{% url 'attendance:student_detail' s.id %}" class="button secondary sm">Detail</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div class="stats-grid" style="grid-template-columns:repeat(5,1fr);">
+    <div class="stat-card">
+        <div class="label">Etudiants</div>
+        <div class="value">{{ student_total }}</div>
+        <div class="sub">actifs</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Salles</div>
+        <div class="value">{{ salle_total }}</div>
+        <div class="sub"><a href="{% url 'attendance:salle_list' %}">actives</a></div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Cameras</div>
+        <div class="value">{{ camera_total }}</div>
+        <div class="sub"><a href="{% url 'attendance:camera_list' %}">actives</a></div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Presences</div>
+        <div class="value">{{ attendance_total }}</div>
+        <div class="sub">total</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Inconnus</div>
+        <div class="value" style="{% if unknown_total > 0 %}color:var(--warning);{% endif %}">{{ unknown_total }}</div>
+        <div class="sub"><a href="{% url 'attendance:unknown_faces' %}">voir</a></div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <div class="panel">
+        <div class="panel-head">
+            <h3>Presence du jour</h3>
+            <a href="{% url 'attendance:daily_attendance_list' %}" class="button secondary sm">Voir tout</a>
+        </div>
+        {% if daily_recent_arrivals %}
+        <div class="table-wrap">
+            <table class="attendance-table-compact">
+                <thead>
+                    <tr><th>Eleve</th><th>Classe</th><th>Statut</th><th>Arrivee</th></tr>
+                </thead>
+                <tbody>
+                    {% for record in daily_recent_arrivals %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'attendance:student_detail' record.student.id %}">{{ record.student.full_name }}</a>
+                        </td>
+                        <td style="color:var(--muted); font-size:0.78rem;">
+                            {{ record.student.classe_display }}
+                        </td>
+                        <td>
+                            <span class="badge {{ record.status_badge_class }}">{{ record.get_status_display }}</span>
+                        </td>
+                        <td style="color:var(--muted); font-family:monospace;">{{ record.heure_entree|time:"H:i:s" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">Aucune arrivee enregistree aujourd'hui.</div>
+        {% endif %}
+    </div>
+
+    <div>
+        <div class="panel" style="margin-bottom:1.5rem;">
+            <div class="panel-head"><h3>Acces rapide</h3></div>
+            <div class="panel-body" style="display:flex; flex-direction:column; gap:0.5rem;">
+                <a href="{% url 'attendance:camera_monitor' %}" target="_blank" class="button primary" style="justify-content:flex-start;">&#9680; Reconnaissance en direct (moniteur)</a>
+                <a href="{% url 'attendance:recognize_upload' %}" class="button secondary" style="justify-content:flex-start;">&#9685; Upload photo</a>
+                <a href="{% url 'attendance:student_create' %}" class="button secondary" style="justify-content:flex-start;">+ Ajouter un etudiant</a>
+                <a href="{% url 'attendance:reports' %}" class="button secondary" style="justify-content:flex-start;">&#9636; Rapports &amp; CSV</a>
+                <a href="{% url 'attendance:export_excel' %}" class="button secondary" style="justify-content:flex-start;">&#9999; Exporter Excel (.xlsx)</a>
+                <a href="{% url 'attendance:jours_feries_list' %}" class="button secondary" style="justify-content:flex-start;">&#9728; Calendrier des conges</a>
+                <a href="{% url 'attendance:salle_list' %}" class="button secondary" style="justify-content:flex-start;">&#9641; Gestion des salles</a>
+            </div>
+        </div>
+
+        {% if recent_unknowns %}
+        <div class="panel">
+            <div class="panel-head">
+                <h3>Derniers visages inconnus</h3>
+                <a href="{% url 'attendance:unknown_faces' %}" class="button secondary sm">Voir tout</a>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(4,1fr);">
+                {% for log in recent_unknowns %}
+                <div style="border-right:1px solid var(--border); {% if forloop.last %}border-right:none;{% endif %}">
+                    {% if log.image %}
+                    <img src="{{ log.image.url }}" style="width:100%; aspect-ratio:1/1; object-fit:cover; display:block;">
+                    {% else %}
+                    <div style="width:100%; aspect-ratio:1/1; background:#f3f4f6; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:1.5rem;">?</div>
+                    {% endif %}
+                    <div style="padding:0.3rem 0.5rem; font-size:0.68rem; color:var(--muted); border-top:1px solid var(--border);">{{ log.detected_at|date:"d/m H:i" }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Liste Presence — {{ target_date|date:"d/m/Y" }}{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+    <div>
+        <h1 class="page-title">&#128203; Presence du {{ target_date|date:"d/m/Y" }}</h1>
+        <p class="page-subtitle">{{ total_present }} enregistrements &mdash; {{ total_absent }} non enregistres</p>
+    </div>
+    <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+        <a href="{% url 'attendance:daily_attendance_list' %}?date={{ prev_date }}" class="btn btn-secondary" title="Jour precedent">&#8592; Prev</a>
+        <a href="{% url 'attendance:daily_attendance_list' %}?date={{ next_date }}" class="btn btn-secondary" title="Jour suivant">Suiv &#8594;</a>
+        <a href="{% url 'attendance:dashboard' %}" class="btn btn-secondary">&#127759; Dashboard</a>
+        <form method="post" action="{% url 'attendance:daily_generate_absents' %}" style="margin:0;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger"
+                onclick="return confirm(&quot;Generer les absences pour tous les eleves non enregistres aujourd'hui ?&quot;)">
+                &#128204; Generer absences
+            </button>
+        </form>
+    </div>
+</div>
+
+{% if messages %}
+<div style="margin-bottom:1rem;">
+    {% for msg in messages %}
+    <div class="alert {% if msg.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">{{ msg }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if day_block_reason %}
+<div class="alert alert-warning" style="margin-bottom:1rem;">
+    {{ day_block_reason }}. Aucune absence automatique n'est attendue pour cette date.
+</div>
+{% endif %}
+
+<!-- Filtres -->
+<div class="card" style="margin-bottom:1.5rem;">
+    <form method="get" style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
+        <input type="hidden" name="date" value="{{ target_date|date:'Y-m-d' }}">
+        <div style="flex:1; min-width:180px;">
+            <label class="form-label">Recherche</label>
+            <input type="text" name="q" value="{{ q }}" placeholder="Nom ou code..." class="form-input">
+        </div>
+        <div>
+            <label class="form-label">Statut</label>
+            <select name="status" class="form-input" style="min-width:140px;">
+                <option value="">— Tous —</option>
+                {% for val, label in status_choices %}
+                <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="form-label">Classe</label>
+            <select name="classe" class="form-input" style="min-width:120px;">
+                <option value="">— Toutes —</option>
+                {% for cls in classes %}
+                <option value="{{ cls.id }}" {% if classe_filter == cls.id|stringformat:"s" %}selected{% endif %}>{{ cls.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="form-label">Date</label>
+            <input type="date" name="date" value="{{ target_date|date:'Y-m-d' }}" class="form-input">
+        </div>
+        <button type="submit" class="btn btn-primary">&#128269; Filtrer</button>
+        <a href="{% url 'attendance:daily_attendance_list' %}?date={{ target_date|date:'Y-m-d' }}" class="btn btn-secondary">Reinitialiser</a>
+    </form>
+</div>
+
+<!-- Enregistrements existants -->
+{% if records %}
+<div class="card" style="margin-bottom:1.5rem;">
+    <h2 class="card-title" style="margin-bottom:1rem;">&#9989; Eleves enregistres ({{ total_present }})</h2>
+    <div style="overflow-x:auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Eleve</th>
+                    <th>Classe</th>
+                    <th>Statut</th>
+                    <th>Arrivee</th>
+                    <th>Camera entree</th>
+                    <th>Justificatif</th>
+                    <th>Modifie par</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rec in records %}
+                <tr>
+                    <td style="font-weight:600;">
+                        {{ rec.student.full_name }}<br>
+                        <small style="color:var(--muted); font-family:monospace;">{{ rec.student.student_code }}</small>
+                    </td>
+                    <td><span class="badge badge-blue">{{ rec.student.classe }}</span></td>
+                    <td>
+                        <span class="badge {{ rec.status_badge_class }}">
+                            {{ rec.get_status_display }}
+                        </span>
+                    </td>
+                    <td style="font-family:monospace;">
+                        {% if rec.heure_entree %}{{ rec.heure_entree|time:"H:i" }}{% else %}<span style="color:var(--muted);">—</span>{% endif %}
+                    </td>
+                    <td style="font-size:0.78rem; color:var(--muted);">
+                        {% if rec.camera_entree %}{{ rec.camera_entree.name }}{% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if rec.excuse_reason %}
+                        <span class="badge badge-blue">{{ rec.get_excuse_reason_display }}</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td style="font-size:0.75rem; color:var(--muted);">{{ rec.modified_by|default:"Systeme" }}</td>
+                    <td>
+                        <a href="{% url 'attendance:daily_attendance_edit' rec.id %}" class="btn btn-secondary" style="padding:0.25rem 0.6rem; font-size:0.8rem;">
+                            &#9998; Modifier
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Élèves non enregistrés -->
+{% if absent_students %}
+<div class="card">
+    <h2 class="card-title" style="margin-bottom:1rem; color:var(--danger);">&#10060; Non enregistres aujourd'hui ({{ total_absent }})</h2>
+    <p style="font-size:0.8rem; color:var(--muted); margin-bottom:1rem;">
+        Ces eleves n'ont pas encore de presence pour ce jour. Utilisez "Generer absences" pour les marquer automatiquement.
+    </p>
+    <div style="overflow-x:auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Eleve</th>
+                    <th>Code</th>
+                    <th>Classe</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in absent_students %}
+                <tr>
+                    <td style="font-weight:600;">{{ student.full_name }}</td>
+                    <td style="font-family:monospace; font-size:0.82rem;">{{ student.student_code }}</td>
+                    <td><span class="badge badge-blue">{{ student.classe }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if not records and not absent_students %}
+<div class="card" style="text-align:center; padding:3rem 1rem;">
+    <div style="font-size:3rem; margin-bottom:1rem;">&#128203;</div>
+    <p style="color:var(--muted);">Aucun eleve actif trouve avec ces filtres.</p>
+</div>
+{% endif %}
+{% endblock %}

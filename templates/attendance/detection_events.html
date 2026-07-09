@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Evenements bruts — UniPresence{% endblock %}
+{% block page_title %}Journal d'evenements de detection{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'attendance:system_config' %}" class="button secondary sm">&#9881; Configuration</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Pipeline explique -->
+<div class="panel" style="margin-bottom:1.5rem; background:rgba(59,130,246,0.05); border-color:rgba(59,130,246,0.15); padding:1rem 1.25rem;">
+    <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; font-size:0.8rem;">
+        <span style="color:var(--muted); font-weight:600;">PIPELINE :</span>
+        <span class="badge badge-muted">Detecte</span>
+        <span style="color:var(--muted);">→</span>
+        <span class="badge badge-blue">Reconnu</span>
+        <span style="color:var(--muted);">→</span>
+        <span class="badge badge-yellow">Hors classe ?</span>
+        <span style="color:var(--muted);">ou</span>
+        <span class="badge badge-yellow">Trop tot ?</span>
+        <span style="color:var(--muted);">ou</span>
+        <span class="badge badge-red">Refuse ?</span>
+        <span style="color:var(--muted);">ou</span>
+        <span class="badge badge-muted">Doublon ?</span>
+        <span style="color:var(--muted);">→</span>
+        <span class="badge badge-green">Enregistre</span>
+        <span style="margin-left:auto; color:var(--muted);">{{ total }} evenement(s) total</span>
+    </div>
+</div>
+
+<!-- Compteurs par etape -->
+<div class="stats-grid" style="grid-template-columns:repeat(4,1fr); margin-bottom:1.5rem;">
+    {% for item in etape_stats %}
+    <div class="stat-card" style="{% if etape == item.code %}border-color:var(--accent);{% endif %}">
+        <div class="label" style="font-size:0.7rem;">{{ item.label }}</div>
+        <div class="value" style="font-size:1.4rem;">{{ item.count }}</div>
+        <a href="?etape={{ item.code }}" class="sub" style="color:var(--accent); text-decoration:none; font-size:0.7rem;">Filtrer</a>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Filtres -->
+<div class="panel" style="margin-bottom:1rem;">
+    <div class="panel-body" style="padding:0.75rem 1rem;">
+        <form method="get" style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:flex-end;">
+            <div class="form-group" style="margin:0;">
+                <label style="font-size:0.72rem;">Etudiant</label>
+                <input type="text" name="q" value="{{ student_q }}" placeholder="Nom etudiant..." style="width:180px;">
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label style="font-size:0.72rem;">Etape du pipeline</label>
+                <select name="etape" style="width:180px;">
+                    <option value="">Toutes les etapes</option>
+                    {% for code, label in etape_choices %}
+                    <option value="{{ code }}" {% if etape == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button class="button secondary" type="submit">Filtrer</button>
+            {% if etape or student_q or session_id %}
+            <a href="{% url 'attendance:detection_events' %}" class="button secondary">Reinitialiser</a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Table -->
+<div class="panel">
+    <div class="panel-head">
+        <h3>{{ page_obj.paginator.count }} evenement(s)</h3>
+        <span style="font-size:0.75rem; color:var(--muted);">Tri : plus recent en premier — 50 par page</span>
+    </div>
+    {% if page_obj.object_list %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Heure</th>
+                    <th>Etape</th>
+                    <th>Etudiant</th>
+                    <th>Session</th>
+                    <th>Confiance</th>
+                    <th>Source</th>
+                    <th>Raison</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ev in page_obj %}
+                <tr>
+                    <td style="font-family:monospace; font-size:0.78rem; color:var(--muted);">{{ ev.detected_at|date:"d/m H:i:s" }}</td>
+                    <td><span class="badge {{ ev.etape_badge_class }}">{{ ev.get_etape_display }}</span></td>
+                    <td>
+                        {% if ev.student %}
+                        <a href="{% url 'attendance:student_detail' ev.student.id %}" style="color:var(--text); font-weight:600;">{{ ev.student.full_name }}</a>
+                        <span style="display:block; font-size:0.7rem; color:var(--muted);">{{ ev.student.student_code }}</span>
+                        {% else %}
+                        <span style="color:var(--muted);">Inconnu</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:0.78rem; color:var(--muted);">
+                        {% if ev.course_session %}
+                        <a href="{% url 'attendance:session_detail' ev.course_session.id %}" style="color:var(--muted);">
+                            {{ ev.course_session.course.code }}<br>{{ ev.course_session.date|date:"d/m/Y" }}
+                        </a>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td style="font-size:0.82rem; text-align:right;">
+                        {% if ev.confiance > 0 %}
+                        <span style="color:{% if ev.confiance >= 60 %}var(--success){% elif ev.confiance >= 40 %}var(--warning){% else %}var(--danger){% endif %};">
+                            {{ ev.confiance }}%
+                        </span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td style="font-size:0.75rem; color:var(--muted);">{{ ev.source }}</td>
+                    <td style="font-size:0.75rem; color:var(--muted); max-width:220px;">{{ ev.raison|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div style="display:flex; gap:0.5rem; padding:1rem; justify-content:center;">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}&etape={{ etape }}&q={{ student_q }}" class="button secondary sm">&laquo; Prec</a>
+        {% endif %}
+        <span style="display:flex; align-items:center; font-size:0.82rem; color:var(--muted);">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}&etape={{ etape }}&q={{ student_q }}" class="button secondary sm">Suiv &raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="empty-state">Aucun evenement enregistre.<br>Activez "Archiver evenements bruts" dans la configuration et lancez une reconnaissance.</div>
+    {% endif %}
+</div>
+
+{% endblock %}

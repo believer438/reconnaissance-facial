@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}{{ student.full_name }} — SecPresence{% endblock %}
+{% block page_title %}Fiche élève{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'attendance:student_edit' student.id %}" class="button secondary sm">✏ Modifier</a>
+<a href="{% url 'attendance:student_list' %}" class="button secondary sm">&larr; Retour</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="grid-2" style="align-items:start; gap:1.25rem;">
+
+    <!-- Colonne gauche : Informations complètes -->
+    <div>
+
+        <!-- En-tête identité -->
+        <div class="panel" style="margin-bottom:1.25rem;">
+            <div class="panel-head">
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    {% if student.photo_profil %}
+                    <img src="{{ student.photo_profil.url }}" alt="{{ student.full_name }}"
+                         style="width:56px; height:56px; border-radius:50%; object-fit:cover; border:2px solid var(--border);">
+                    {% else %}
+                    <div style="width:56px; height:56px; border-radius:50%; background:var(--surface-hover); border:2px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:1.4rem;">👤</div>
+                    {% endif %}
+                    <div>
+                        <div style="font-size:1.1rem; font-weight:700;">{{ student.full_name }}</div>
+                        <div style="font-size:0.82rem; color:var(--muted); font-family:monospace;">{{ student.student_code }}</div>
+                    </div>
+                </div>
+                <span class="badge {{ student.statut_badge }}">{{ student.get_statut_display }}</span>
+            </div>
+        </div>
+
+        <!-- Identité détaillée -->
+        <div class="panel" style="margin-bottom:1.25rem;">
+            <div class="panel-head"><h3>🪪 Identité</h3></div>
+            <div class="panel-body">
+                <table>
+                    <tbody>
+                        {% if student.nom %}<tr><td class="info-label">Nom</td><td><strong>{{ student.nom }}</strong></td></tr>{% endif %}
+                        {% if student.post_nom %}<tr><td class="info-label">Post-nom</td><td>{{ student.post_nom }}</td></tr>{% endif %}
+                        {% if student.prenom %}<tr><td class="info-label">Prénom(s)</td><td>{{ student.prenom }}</td></tr>{% endif %}
+                        {% if not student.nom %}<tr><td class="info-label">Nom complet</td><td><strong>{{ student.full_name }}</strong></td></tr>{% endif %}
+                        {% if student.sexe %}<tr><td class="info-label">Sexe</td><td>{{ student.get_sexe_display }}</td></tr>{% endif %}
+                        {% if student.date_of_birth %}<tr><td class="info-label">Date de naissance</td><td>{{ student.date_of_birth|date:"d/m/Y" }}</td></tr>{% endif %}
+                        {% if student.lieu_naissance %}<tr><td class="info-label">Lieu de naissance</td><td>{{ student.lieu_naissance }}</td></tr>{% endif %}
+                        {% if student.adresse %}<tr><td class="info-label">Adresse</td><td>{{ student.adresse }}</td></tr>{% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Scolarité -->
+        <div class="panel" style="margin-bottom:1.25rem;">
+            <div class="panel-head"><h3>🎓 Scolarité</h3></div>
+            <div class="panel-body">
+                <table>
+                    <tbody>
+                        <tr><td class="info-label">Matricule</td><td><span style="font-family:monospace;">{{ student.student_code }}</span></td></tr>
+                        <tr><td class="info-label">Classe</td><td>{{ student.classe_display }}</td></tr>
+                        {% if student.section %}<tr><td class="info-label">Section</td><td>{{ student.section }}</td></tr>{% endif %}
+                        {% if student.annee_scolaire %}<tr><td class="info-label">Année scolaire</td><td>{{ student.annee_scolaire }}</td></tr>{% endif %}
+                        {% if student.date_inscription %}<tr><td class="info-label">Date d'inscription</td><td>{{ student.date_inscription|date:"d/m/Y" }}</td></tr>{% endif %}
+                        <tr><td class="info-label">Taux de présence</td>
+                            <td><span style="font-weight:700; {% if attendance_rate >= 80 %}color:var(--success){% elif attendance_rate >= 60 %}color:var(--warning){% else %}color:var(--danger){% endif %}">{{ attendance_rate }}%</span></td>
+                        </tr>
+                        <tr><td class="info-label">Présences</td><td>{{ presences_count }} présent(s) · {{ retards_count }} retard(s) · {{ excuses_count }} excusé(s)</td></tr>
+                        <tr><td class="info-label">Absences</td><td><span style="{% if absences_count > 0 %}color:var(--danger); font-weight:700;{% endif %}">{{ absences_count }}</span> sur {{ total_daily_count }} jour(s) suivi(s)</td></tr>
+                        <tr><td class="info-label">Inscrit le</td><td style="color:var(--muted);">{{ student.created_at|date:"d/m/Y" }}</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Parent / Tuteur -->
+        {% if student.parent_nom or student.parent_telephone %}
+        <div class="panel" style="margin-bottom:1.25rem;">
+            <div class="panel-head"><h3>👨‍👩‍👦 Parent / Tuteur</h3></div>
+            <div class="panel-body">
+                <table>
+                    <tbody>
+                        {% if student.parent_nom %}<tr><td class="info-label">Nom</td><td>{{ student.parent_nom }}</td></tr>{% endif %}
+                        {% if student.parent_telephone %}<tr><td class="info-label">Téléphone</td><td>{{ student.parent_telephone }}</td></tr>{% endif %}
+                        {% if student.email %}<tr><td class="info-label">Email élève</td><td><a href="mailto:{{ student.email }}">{{ student.email }}</a></td></tr>{% endif %}
+                        {% if student.phone %}<tr><td class="info-label">Tél. élève</td><td>{{ student.phone }}</td></tr>{% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Actions -->
+        <div class="panel">
+            <div class="panel-head"><h3>Actions</h3></div>
+            <div class="panel-body" style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+                <a href="{% url 'attendance:student_edit' student.id %}" class="button secondary">✏ Modifier les infos</a>
+                <a href="{% url 'attendance:student_delete' student.id %}" class="button secondary" style="color:var(--danger); border-color:rgba(220,38,38,0.4);">🗑 Supprimer</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Colonne droite : Photos + Présences -->
+    <div>
+
+        <!-- Empreintes faciales -->
+        <div class="panel" style="margin-bottom:1.25rem;">
+            <div class="panel-head">
+                <h3 id="photos">📸 Photos de reconnaissance ({{ student.photos.count }})</h3>
+                <span class="badge {% if student.photos.count >= 10 %}badge-green{% elif student.photos.count > 0 %}badge-yellow{% else %}badge-red{% endif %}">
+                    {% if student.photos.count >= 10 %}✓ Suffisant{% elif student.photos.count > 0 %}⚠ Insuffisant{% else %}✗ Aucune{% endif %}
+                </span>
+            </div>
+
+            {% if student.nb_embeddings > 0 %}
+            <div style="padding:0.4rem 1rem; background:rgba(74,222,128,0.08); border-bottom:1px solid rgba(74,222,128,0.2); font-size:0.8rem; color:#4ade80;">
+                ✓ {{ student.nb_embeddings }} empreinte(s) faciale(s) — reconnaissance sans réentraînement
+            </div>
+            {% else %}
+            <div style="padding:0.4rem 1rem; background:rgba(234,179,8,0.08); border-bottom:1px solid rgba(234,179,8,0.2); font-size:0.8rem; color:#eab308;">
+                ⚠ Aucune empreinte — ajoutez des photos pour activer la reconnaissance
+            </div>
+            {% endif %}
+
+            {% if student.photos.all %}
+            <div class="photo-grid" style="padding:0.75rem 1rem;">
+                {% for photo in student.photos.all %}
+                <div style="position:relative;">
+                    <img src="{{ photo.image.url }}" alt="{{ student.full_name }}" style="border-radius:4px;">
+                    {% if photo.angle_tag %}
+                    <span style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,.7);color:#fff;font-size:0.6rem;padding:1px 4px;border-radius:3px;">{{ photo.angle_tag }}</span>
+                    {% endif %}
+                    {% if photo.embedding %}
+                    <span style="position:absolute;top:2px;left:2px;background:rgba(74,222,128,.8);color:#fff;font-size:0.6rem;width:12px;height:12px;border-radius:50%;display:flex;align-items:center;justify-content:center;" title="Empreinte stockée">✓</span>
+                    {% endif %}
+                    <form method="post" action="{% url 'attendance:photo_delete' photo.id %}" style="position:absolute;top:2px;right:2px;">
+                        {% csrf_token %}
+                        <button type="submit" style="background:rgba(0,0,0,.6);color:#fff;border:none;width:18px;height:18px;cursor:pointer;font-size:0.65rem;display:flex;align-items:center;justify-content:center;border-radius:2px;" title="Supprimer">✕</button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">Aucune photo. Ajoutez des photos pour activer la reconnaissance faciale.</div>
+            {% endif %}
+
+            <!-- Zone d'ajout de photos avec guidage angle -->
+            <div style="padding:0.75rem 1rem; border-top:1px solid var(--border);">
+                <p style="font-size:0.78rem; color:var(--muted); margin-bottom:0.5rem;">Visez 10–30 photos sous différents angles (face, gauche, droite, incliné) :</p>
+                <form method="post" action="{% url 'attendance:student_add_photos' student.id %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                        <select name="angle_tag" style="padding:0.35rem 0.5rem; background:var(--surface); border:1px solid var(--border); border-radius:4px; color:var(--text); font-size:0.82rem;">
+                            <option value="">— Angle —</option>
+                            <option value="face">😊 Face</option>
+                            <option value="gauche">😤 Gauche</option>
+                            <option value="droite">😒 Droite</option>
+                            <option value="incline">🤔 Incliné</option>
+                            <option value="autre">Autre</option>
+                        </select>
+                        <input type="file" name="photos" accept="image/*" multiple style="flex:1; min-width:0;">
+                        <button class="button primary sm" type="submit">+ Ajouter</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Historique de présences -->
+        <div class="panel">
+            <div class="panel-head">
+                <h3>📅 Historique de présences ({{ records|length }})</h3>
+                <a href="{% url 'attendance:daily_attendance_list' %}?q={{ student.full_name }}" class="button secondary sm">Voir tout</a>
+            </div>
+            {% if records %}
+            <div class="table-wrap">
+                <table class="attendance-table-compact">
+                    <thead>
+                        <tr><th>Date</th><th>Arrivée</th><th>Statut</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for record in records %}
+                        <tr>
+                            <td>{{ record.date|date:"d/m/Y" }}</td>
+                            <td>{% if record.heure_entree %}{{ record.heure_entree|time:"H:i" }}{% else %}<span style="color:var(--muted);">—</span>{% endif %}</td>
+                            <td>
+                                <span class="badge {{ record.status_badge_class }}">{{ record.get_status_display }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">Aucune présence enregistrée.</div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

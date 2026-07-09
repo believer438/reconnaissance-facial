@@ -1,0 +1,314 @@
+{% extends 'base.html' %}
+{% block title %}Diagnostic de reconnaissance — SecPresence{% endblock %}
+{% block page_title %}🔍 Diagnostic de reconnaissance{% endblock %}
+
+{% block topbar_actions %}
+<select id="sel-interval" style="font-size:.78rem;padding:.25rem .5rem;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;">
+    <option value="0">Manuel (bouton)</option>
+    <option value="1500">Auto : 1.5s</option>
+    <option value="3000">Auto : 3s</option>
+    <option value="5000">Auto : 5s</option>
+</select>
+<button id="btn-capture" onclick="captureNow()" style="font-size:.78rem;padding:.25rem .9rem;border-radius:4px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer;font-weight:600;">
+    📸 Analyser
+</button>
+<span id="status-pill" style="font-size:.72rem;padding:.2rem .6rem;border-radius:20px;background:var(--border);color:var(--muted);font-weight:600;">Prêt</span>
+{% endblock %}
+
+{% block content %}
+<style>
+.diag-layout{display:grid;grid-template-columns:1fr 1fr;gap:1rem;height:calc(100vh - 44px - 2.5rem);}
+.diag-cam-wrap{position:relative;background:#080d14;border:1px solid var(--border);overflow:hidden;display:flex;align-items:center;justify-content:center;border-radius:4px;}
+.diag-cam-wrap video,.diag-cam-wrap canvas.ov{width:100%;height:100%;object-fit:contain;display:block;}
+.diag-cam-wrap canvas.ov{position:absolute;top:0;left:0;pointer-events:none;}
+.diag-right{display:flex;flex-direction:column;gap:.75rem;min-height:0;overflow-y:auto;}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:4px;}
+.panel-head{padding:.5rem .75rem;border-bottom:1px solid var(--border);font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);}
+.thresh-info{padding:.5rem .75rem;font-size:.72rem;display:flex;gap:1rem;flex-wrap:wrap;}
+.thresh-badge{padding:.15rem .5rem;border-radius:3px;font-weight:700;font-size:.7rem;}
+.score-table{width:100%;border-collapse:collapse;font-size:.75rem;}
+.score-table th{padding:.35rem .6rem;text-align:left;font-size:.63rem;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:1;}
+.score-table td{padding:.3rem .6rem;border-bottom:1px solid rgba(255,255,255,.04);}
+.score-table tr.match td{background:rgba(22,163,74,.07);}
+.score-table tr.low-conf td{background:rgba(245,158,11,.07);}
+.score-table tr.no-match td{color:#4b5563;}
+.bar-cell{width:80px;}
+.bar-wrap{height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;position:relative;}
+.bar-fill{height:100%;border-radius:3px;}
+.badge{display:inline-block;padding:.1rem .4rem;border-radius:3px;font-size:.62rem;font-weight:700;}
+.badge.match{background:rgba(22,163,74,.2);color:#16a34a;}
+.badge.low{background:rgba(245,158,11,.2);color:#f59e0b;}
+.badge.no{background:rgba(75,85,99,.2);color:#6b7280;}
+.no-face{padding:2rem;text-align:center;color:var(--muted);font-size:.85rem;}
+.face-section{padding:.35rem .6rem;font-size:.68rem;font-weight:700;color:#eab308;background:rgba(234,179,8,.05);border-bottom:1px solid rgba(234,179,8,.1);}
+.legend{display:flex;gap:.75rem;align-items:center;padding:.3rem .75rem;font-size:.65rem;color:var(--muted);}
+.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+</style>
+
+<div class="diag-layout">
+    <div class="diag-cam-wrap">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas class="ov" id="overlay"></canvas>
+        <div id="cam-err" style="position:absolute;padding:1.5rem;text-align:center;font-size:.82rem;color:var(--muted);display:none;"></div>
+    </div>
+
+    <div class="diag-right">
+        <div class="panel">
+            <div class="panel-head">Paramètres de seuil actifs</div>
+            <div class="thresh-info">
+                <span>Seuil de reconnaissance :</span>
+                <span class="thresh-badge" style="background:rgba(234,179,8,.15);color:#eab308;">{{ threshold }}%</span>
+                <span style="color:var(--muted)">En-dessous → INCONNU</span>
+            </div>
+            <div class="thresh-info" style="padding-top:0;">
+                <span>Seuil haute confiance :</span>
+                <span class="thresh-badge" style="background:rgba(22,163,74,.15);color:#16a34a;">{{ seuil_haute|floatformat:0 }}% distance max</span>
+                <span style="color:var(--muted)">≙ {{ seuil_haute|floatformat:0 }}% de score min</span>
+            </div>
+            <div class="legend">
+                <span class="legend-dot" style="background:#16a34a;"></span> Reconnu (haute conf.)
+                <span class="legend-dot" style="background:#f59e0b;"></span> Reconnu (faible conf.)
+                <span class="legend-dot" style="background:#4b5563;"></span> Inconnu / rejeté
+            </div>
+        </div>
+
+        <div class="panel" style="flex:1;min-height:0;display:flex;flex-direction:column;">
+            <div class="panel-head" style="display:flex;align-items:center;justify-content:space-between;">
+                Scores par élève
+                <span id="face-count" style="background:var(--border);padding:1px 6px;border-radius:10px;font-size:.65rem;">—</span>
+            </div>
+            <div id="scores-wrap" style="overflow-y:auto;flex:1;">
+                <div class="no-face">Appuyez sur <strong>Analyser</strong> ou activez le mode auto<br>pour voir les scores de similarité.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<canvas id="cap" style="display:none;"></canvas>
+
+<script>
+(function(){
+'use strict';
+const DIAG_URL = "{% url 'attendance:api_diagnostic' %}";
+const CSRF     = "{{ csrf_token }}";
+const THRESHOLD = {{ threshold }};
+const SEUIL_HAUTE = {{ seuil_haute }};
+
+const video   = document.getElementById('video');
+const overlay = document.getElementById('overlay');
+const cap     = document.getElementById('cap');
+const pill    = document.getElementById('status-pill');
+const camErr  = document.getElementById('cam-err');
+
+let stream = null, autoTimer = null;
+
+function setPill(txt, col) {
+    if (!pill) return;
+    pill.textContent = txt;
+    pill.style.background = col || 'var(--border)';
+    pill.style.color = col ? '#fff' : 'var(--muted)';
+}
+
+// ── Démarrage caméra ─────────────────────────────────────────────────────────
+async function startCam() {
+    const sets = [
+        { video: { width: {ideal:1280}, height: {ideal:720} } },
+        { video: { width: {ideal:640},  height: {ideal:480} } },
+        { video: true },
+    ];
+    let lastErr = null;
+    for (const c of sets) {
+        try { stream = await navigator.mediaDevices.getUserMedia(c); break; }
+        catch(e) { lastErr = e; if (e.name === 'NotAllowedError' || e.name === 'NotFoundError') break; }
+    }
+    if (!stream) {
+        const msg = lastErr?.name === 'NotAllowedError'
+            ? 'Permission refusée. Autorisez la caméra dans votre navigateur.'
+            : window.self !== window.top
+                ? '⚠ La caméra ne fonctionne pas dans un aperçu embarqué. Ouvrez l\'app dans un onglet.'
+                : `Erreur caméra : ${lastErr?.message || 'inconnue'}`;
+        camErr.textContent = msg;
+        camErr.style.display = 'block';
+        setPill('Erreur caméra', '#dc2626');
+        return;
+    }
+    video.srcObject = stream;
+    try { await video.play(); } catch(e) {}
+    setPill('Caméra prête', '#16a34a');
+    camErr.style.display = 'none';
+
+    document.getElementById('sel-interval').addEventListener('change', function() {
+        if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+        const ms = parseInt(this.value, 10);
+        if (ms > 0) autoTimer = setInterval(captureNow, ms);
+    });
+}
+
+// ── Capture & analyse ─────────────────────────────────────────────────────────
+window.captureNow = async function() {
+    if (!video || video.readyState < 2 || !video.videoWidth) {
+        setPill('Pas de vidéo', '#dc2626');
+        return;
+    }
+    const W = video.videoWidth, H = video.videoHeight;
+    cap.width = W; cap.height = H;
+    cap.getContext('2d').drawImage(video, 0, 0, W, H);
+    const b64 = cap.toDataURL('image/jpeg', 0.85);
+
+    setPill('Analyse…', '#2563eb');
+    let data;
+    try {
+        const r = await fetch(DIAG_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ image: b64 }),
+        });
+        data = await r.json();
+    } catch(e) {
+        setPill('Erreur réseau', '#dc2626');
+        return;
+    }
+
+    if (data.error) {
+        document.getElementById('scores-wrap').innerHTML =
+            `<div class="no-face" style="color:#dc2626;">⚠ ${data.error}</div>`;
+        setPill('Erreur', '#dc2626');
+        return;
+    }
+
+    const faces = data.faces || [];
+    drawOverlay(faces, W, H);
+    renderScores(faces, data.threshold ?? THRESHOLD, data.seuil_haute ?? SEUIL_HAUTE);
+    const fc = document.getElementById('face-count');
+    if (fc) fc.textContent = `${faces.length} visage${faces.length > 1 ? 's' : ''}`;
+    setPill(faces.length ? `✓ ${faces.length} visage(s)` : 'Aucun visage', faces.length ? '#16a34a' : '#d97706');
+};
+
+// ── Overlay ───────────────────────────────────────────────────────────────────
+function getVideoRect() {
+    const cw = overlay.offsetWidth  || overlay.parentElement.offsetWidth;
+    const ch = overlay.offsetHeight || overlay.parentElement.offsetHeight;
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if (!vw || !vh) return {x:0,y:0,w:cw,h:ch};
+    const ar = vw/vh, cr = cw/ch;
+    let rw, rh;
+    if (ar > cr) { rw=cw; rh=cw/ar; } else { rh=ch; rw=ch*ar; }
+    return {x:(cw-rw)/2, y:(ch-rh)/2, w:rw, h:rh};
+}
+
+function scoreColor(val, threshold) {
+    const high = 100 - SEUIL_HAUTE;
+    if (val >= high) return '#16a34a';
+    if (val >= threshold) return '#f59e0b';
+    return '#dc2626';
+}
+
+function drawOverlay(faces, W, H) {
+    if (!overlay) return;
+    overlay.width  = overlay.offsetWidth  || overlay.parentElement.offsetWidth;
+    overlay.height = overlay.offsetHeight || overlay.parentElement.offsetHeight;
+    const ctx = overlay.getContext('2d');
+    ctx.clearRect(0,0,overlay.width,overlay.height);
+    const vr = getVideoRect();
+    const thr = THRESHOLD;
+
+    faces.forEach((f, i) => {
+        const [bxP, byP, bwP, bhP] = f.bbox;
+        const x = vr.x + bxP/100*vr.w;
+        const y = vr.y + byP/100*vr.h;
+        const w = bwP/100*vr.w;
+        const h = bhP/100*vr.h;
+        const best = f.scores && f.scores[0];
+        const col = best ? scoreColor(best.combined, thr) : '#6b7280';
+        const label = best ? (best.is_match ? best.name : 'INCONNU') : 'Visage';
+
+        ctx.strokeStyle = col; ctx.lineWidth = 2;
+        ctx.strokeRect(x,y,w,h);
+        const cs = Math.min(w,h)*.2;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(x,y+cs); ctx.lineTo(x,y); ctx.lineTo(x+cs,y);
+        ctx.moveTo(x+w-cs,y); ctx.lineTo(x+w,y); ctx.lineTo(x+w,y+cs);
+        ctx.moveTo(x,y+h-cs); ctx.lineTo(x,y+h); ctx.lineTo(x+cs,y+h);
+        ctx.moveTo(x+w-cs,y+h); ctx.lineTo(x+w,y+h); ctx.lineTo(x+w,y+h-cs);
+        ctx.stroke();
+
+        ctx.font = 'bold 12px "Segoe UI", sans-serif';
+        const info = best ? `χ²=${best.chi2}% cos=${best.cos}% → ${best.combined}%` : '';
+        const labelW = Math.max(ctx.measureText(label).width, ctx.measureText(info).width) + 14;
+        const lh = info ? 40 : 22;
+        ctx.fillStyle = col;
+        ctx.fillRect(x, y - lh, labelW, lh);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(label, x+6, y-(info?22:6));
+        if (info) {
+            ctx.font = '10px monospace';
+            ctx.fillStyle = 'rgba(255,255,255,.85)';
+            ctx.fillText(info, x+6, y-6);
+        }
+    });
+}
+
+// ── Table des scores ──────────────────────────────────────────────────────────
+function barHtml(val, col) {
+    return `<div class="bar-wrap"><div class="bar-fill" style="width:${Math.min(val,100)}%;background:${col};"></div></div>`;
+}
+
+function renderScores(faces, threshold, seuilHaute) {
+    const wrap = document.getElementById('scores-wrap');
+    if (!faces.length) {
+        wrap.innerHTML = '<div class="no-face">Aucun visage détecté dans cette image.</div>';
+        return;
+    }
+
+    let html = '';
+    faces.forEach((f, fi) => {
+        const scores = f.scores || [];
+        const highThresh = 100 - seuilHaute;
+        html += `<div class="face-section">Visage ${fi+1} — ${scores.length} élèves comparés</div>`;
+        html += `<table class="score-table">
+<thead>
+<tr>
+<th>#</th>
+<th>Élève</th>
+<th>Classe</th>
+<th class="bar-cell">Chi²</th>
+<th class="bar-cell">Cosinus</th>
+<th class="bar-cell">Combiné</th>
+<th>Statut</th>
+</tr>
+</thead>
+<tbody>`;
+        scores.forEach((s, idx) => {
+            const col = s.combined >= highThresh ? '#16a34a'
+                      : s.combined >= threshold  ? '#f59e0b'
+                      : '#4b5563';
+            const rowClass = s.combined >= highThresh ? 'match'
+                           : s.combined >= threshold  ? 'low-conf'
+                           : 'no-match';
+            const badge = s.combined >= highThresh
+                ? `<span class="badge match">✓ Reconnu</span>`
+                : s.combined >= threshold
+                    ? `<span class="badge low">⚠ Faible conf.</span>`
+                    : `<span class="badge no">✗ Inconnu</span>`;
+            html += `<tr class="${rowClass}">
+<td style="color:var(--muted)">${idx+1}</td>
+<td style="font-weight:600">${s.name}<br><span style="font-size:.65rem;color:var(--muted)">${s.code}</span></td>
+<td style="font-size:.7rem;color:var(--muted)">${s.class}</td>
+<td class="bar-cell">${barHtml(s.chi2, col)}<span style="font-size:.62rem;color:${col}">${s.chi2}%</span></td>
+<td class="bar-cell">${barHtml(s.cos, col)}<span style="font-size:.62rem;color:${col}">${s.cos}%</span></td>
+<td class="bar-cell">${barHtml(s.combined, col)}<span style="font-size:.62rem;color:${col};font-weight:700">${s.combined}%</span></td>
+<td>${badge}</td>
+</tr>`;
+        });
+        html += '</tbody></table>';
+    });
+    wrap.innerHTML = html;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+setTimeout(startCam, 300);
+
+})();
+</script>
+{% endblock %}

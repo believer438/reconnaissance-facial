@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Presences — UniPresence{% endblock %}
+{% block page_title %}Historique des presences{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'attendance:reports' %}" class="button secondary sm">&#9636; Rapports</a>
+<a href="{% url 'attendance:export_excel' %}" class="button secondary sm">&#9999; Excel</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel" style="margin-bottom:1rem;">
+    <div class="panel-body" style="padding:0.65rem 1rem;">
+        <form method="get" style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+            <input type="text" name="q" value="{{ q }}" placeholder="Nom ou classe..." style="width:180px;">
+            <select name="status" style="width:160px;">
+                <option value="">Tous les statuts</option>
+                {% for val, label in status_choices %}
+                <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <select name="classe" style="width:160px;">
+                <option value="">Toutes les classes</option>
+                {% for c in classes %}
+                <option value="{{ c.id }}" {% if classe_filter == c.id|stringformat:"s" %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+            <input type="date" name="date_from" value="{{ date_from }}" title="Du">
+            <input type="date" name="date_to" value="{{ date_to }}" title="Au">
+            <button class="button secondary" type="submit">Filtrer</button>
+            {% if q or status_filter or date_from or date_to or classe_filter %}
+            <a href="{% url 'attendance:attendance_list' %}" class="button secondary">Reinitialiser</a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-head">
+        <h3>{{ page_obj.paginator.count }} enregistrement(s)</h3>
+        <span style="font-size:0.75rem; color:var(--muted);">Cliquez sur <strong>Modifier</strong> pour corriger un statut avec justificatif et audit.</span>
+    </div>
+    {% if page_obj.object_list %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Etudiant</th>
+                    <th>Cours / Session</th>
+                    <th>Classe</th>
+                    <th>Statut</th>
+                    <th>Justificatif</th>
+                    <th>Confiance</th>
+                    <th>Source</th>
+                    <th>Date / Heure</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in page_obj %}
+                <tr>
+                    <td>
+                        {% if record.student %}
+                        <a href="{% url 'attendance:student_detail' record.student.id %}" style="color:var(--text); font-weight:600;">{{ record.student_name_snapshot }}</a>
+                        {% else %}
+                        {{ record.student_name_snapshot }}
+                        {% endif %}
+                    </td>
+                    <td style="font-size:0.8rem; color:var(--muted);">
+                        {% if record.course_session %}
+                        <a href="{% url 'attendance:session_detail' record.course_session.id %}">{{ record.course_session.course.code }}</a>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td style="color:var(--muted);">{{ record.classroom_snapshot|default:"—" }}</td>
+                    <td>
+                        {% if record.status == 'present' %}<span class="badge badge-green">Present</span>
+                        {% elif record.status == 'late' %}<span class="badge badge-yellow">Retard</span>
+                        {% elif record.status == 'absent' %}<span class="badge badge-red">Absent</span>
+                        {% elif record.status == 'excuse' %}<span class="badge badge-blue">Excuse</span>
+                        {% else %}<span class="badge badge-muted">{{ record.get_status_display }}</span>{% endif %}
+                        {% if record.modified_by %}<span title="Modifie manuellement par {{ record.modified_by }}" style="margin-left:2px; font-size:0.65rem; color:var(--muted);">&#9998;</span>{% endif %}
+                    </td>
+                    <td style="font-size:0.78rem; color:var(--muted);">
+                        {% if record.excuse_reason %}{{ record.get_excuse_reason_display }}{% else %}—{% endif %}
+                    </td>
+                    <td style="color:var(--muted);">
+                        {% if record.confidence_score %}{{ record.confidence_score|floatformat:1 }}%{% else %}—{% endif %}
+                    </td>
+                    <td style="color:var(--muted); font-size:0.78rem;">{{ record.source }}</td>
+                    <td style="color:var(--muted); white-space:nowrap;">{{ record.recognized_at|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        <a href="{% url 'attendance:attendance_edit' record.id %}" class="button secondary sm">Modifier</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if page_obj.has_other_pages %}
+    <div class="pagination">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}&q={{ q }}&status={{ status_filter }}&date_from={{ date_from }}&date_to={{ date_to }}&classe={{ classe_filter }}">&laquo;</a>
+        {% endif %}
+        <span class="current">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}&q={{ q }}&status={{ status_filter }}&date_from={{ date_from }}&date_to={{ date_to }}&classe={{ classe_filter }}">&raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="empty-state">Aucun enregistrement trouve.</div>
+    {% endif %}
+</div>
+
+{% endblock %}

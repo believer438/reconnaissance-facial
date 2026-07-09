@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier {{ camera.name }} — UniPresence{% endblock %}
+{% block page_title %}Modifier la camera{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'attendance:camera_list' %}" class="button secondary sm">&larr; Cameras</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel" style="max-width:620px;">
+    <div class="panel-head">
+        <h3>{{ camera.name }}</h3>
+        <span class="badge {% if camera.is_active %}badge-green{% else %}badge-red{% endif %}">
+            {% if camera.is_active %}Active{% else %}Inactive{% endif %}
+        </span>
+    </div>
+    <div class="panel-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Nom *</label>
+                    {{ form.name }}
+                </div>
+            </div>
+            <div class="form-row" style="grid-template-columns:1fr 1fr;">
+                <div class="form-group">
+                    <label>Type *</label>
+                    {{ form.camera_type }}
+                </div>
+                <div class="form-group">
+                    <label>Emplacement</label>
+                    {{ form.location }}
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Source</label>
+                    {{ form.source }}
+                    <span class="form-help">Vide = webcam &nbsp;|&nbsp; 0/1 = USB &nbsp;|&nbsp; rtsp://... = IP</span>
+                </div>
+            </div>
+            <div class="form-row" style="grid-template-columns:1fr 1fr;">
+                <div class="form-group">
+                    <label>Largeur (px)</label>
+                    {{ form.resolution_w }}
+                </div>
+                <div class="form-group">
+                    <label>Hauteur (px)</label>
+                    {{ form.resolution_h }}
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Notes</label>
+                    {{ form.notes }}
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group" style="flex-direction:row; align-items:center; gap:0.5rem;">
+                    {{ form.is_active }}
+                    <label style="margin:0; cursor:pointer;">Camera active</label>
+                </div>
+            </div>
+            <div style="display:flex; gap:0.75rem; margin-top:1rem;">
+                <button class="button primary" type="submit">Enregistrer</button>
+                <a href="{% url 'attendance:camera_list' %}" class="button secondary">Annuler</a>
+                <a href="{% url 'attendance:camera_live' camera.id %}" class="button primary" style="margin-left:auto;">&#9673; Live</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

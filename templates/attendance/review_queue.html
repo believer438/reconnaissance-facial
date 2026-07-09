@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block title %}File de revue reconnaissance{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+    <div>
+        <h1 class="page-title">&#128269; File de revue reconnaissance</h1>
+        <p class="page-subtitle">Reconnaissances a faible confiance en attente de validation manuelle</p>
+    </div>
+    <div style="display:flex; gap:0.75rem; align-items:center;">
+        <a href="{% url 'attendance:system_config' %}" class="btn btn-secondary">&#9881; Ajuster les seuils</a>
+    </div>
+</div>
+
+{% if messages %}
+<div style="margin-bottom:1rem;">
+    {% for msg in messages %}
+    <div class="alert {% if msg.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">{{ msg }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Explication du principe -->
+<div class="card" style="margin-bottom:1.5rem; background:rgba(234,179,8,0.04); border-color:rgba(234,179,8,0.25);">
+    <div style="display:flex; gap:1rem; align-items:flex-start;">
+        <div style="font-size:1.5rem; flex-shrink:0;">&#9888;</div>
+        <div>
+            <div style="font-weight:700; margin-bottom:0.4rem;">Pourquoi cette file de revue ?</div>
+            <div style="font-size:0.83rem; color:var(--muted); line-height:1.6;">
+                Quand le systeme reconnait un visage mais avec un score de confiance <strong>dans la zone de doute</strong>
+                (entre le seuil haute confiance et le seuil limite), il ne marque <strong>pas</strong> la presence automatiquement.
+                Il cree un ticket ici pour validation humaine.
+                <br>Regle d'or : <em>mieux vaut un faux rejet qu'un faux positif.</em>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- KPIs -->
+<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:1.5rem;">
+    <div class="stat-card" style="border-left:3px solid var(--warning);">
+        <div class="stat-value" style="color:var(--warning);">{{ nb_pending }}</div>
+        <div class="stat-label">En attente</div>
+    </div>
+    <div class="stat-card" style="border-left:3px solid var(--success);">
+        <div class="stat-value" style="color:var(--success);">{{ nb_validated }}</div>
+        <div class="stat-label">Valides (presences enregistrees)</div>
+    </div>
+    <div class="stat-card" style="border-left:3px solid var(--muted);">
+        <div class="stat-value">{{ nb_rejected }}</div>
+        <div class="stat-label">Rejetes</div>
+    </div>
+</div>
+
+<!-- Filtres -->
+<div class="card" style="margin-bottom:1.25rem;">
+    <form method="get" style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
+        <div>
+            <label class="form-label">Statut</label>
+            <select name="status" class="form-input" style="min-width:160px;">
+                <option value="">— Tous —</option>
+                <option value="pending" {% if status_filter == "pending" %}selected{% endif %}>En attente</option>
+                <option value="validated" {% if status_filter == "validated" %}selected{% endif %}>Valides</option>
+                <option value="rejected" {% if status_filter == "rejected" %}selected{% endif %}>Rejetes</option>
+            </select>
+        </div>
+        <div style="flex:1; min-width:160px;">
+            <label class="form-label">Recherche etudiant</label>
+            <input type="text" name="q" value="{{ q }}" placeholder="Nom ou code..." class="form-input">
+        </div>
+        <button type="submit" class="btn btn-primary">&#128269; Filtrer</button>
+        <a href="{% url 'attendance:review_queue_list' %}" class="btn btn-secondary">Reinitialiser</a>
+    </form>
+</div>
+
+<!-- Liste des tickets -->
+{% if tickets %}
+<div class="card">
+    <div style="overflow-x:auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Capture</th>
+                    <th>Etudiant propose</th>
+                    <th>Score</th>
+                    <th>Distance LBPH</th>
+                    <th>Type</th>
+                    <th>Camera</th>
+                    <th>Date/Heure</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ticket in tickets %}
+                <tr style="{% if ticket.status == 'pending' %}background:rgba(234,179,8,0.04);{% endif %}">
+                    <td style="width:72px;">
+                        {% if ticket.face_image %}
+                        <img src="{{ ticket.face_image.url }}" alt="Visage"
+                             style="width:60px; height:60px; object-fit:cover; border-radius:8px; border:2px solid var(--border);">
+                        {% else %}
+                        <div style="width:60px; height:60px; background:var(--bg); border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:1.5rem; border:1px solid var(--border);">
+                            &#128100;
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if ticket.student_proposed %}
+                        <div style="font-weight:600;">{{ ticket.student_proposed.full_name }}</div>
+                        <div style="font-size:0.75rem; color:var(--muted); font-family:monospace;">
+                            {{ ticket.student_proposed.student_code }}
+                        </div>
+                        {% if ticket.student_proposed.classe %}
+                        <span class="badge badge-blue" style="font-size:0.65rem; margin-top:0.2rem;">
+                            {{ ticket.student_proposed.classe }}
+                        </span>
+                        {% endif %}
+                        {% else %}
+                        <span style="color:var(--muted);">— Inconnu —</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="font-size:1.1rem; font-weight:800;
+                            color:{% if ticket.confidence_proposed >= 70 %}var(--warning){% elif ticket.confidence_proposed >= 55 %}#f97316{% else %}var(--danger){% endif %};">
+                            {{ ticket.confidence_proposed|floatformat:1 }}%
+                        </div>
+                        <div style="height:4px; background:var(--border); border-radius:2px; width:60px; margin-top:3px;">
+                            <div style="height:4px; border-radius:2px; width:{{ ticket.confidence_proposed|floatformat:0 }}%;
+                                background:{% if ticket.confidence_proposed >= 70 %}var(--warning){% else %}var(--danger){% endif %};"></div>
+                        </div>
+                    </td>
+                    <td style="font-family:monospace; font-size:0.85rem;">
+                        {{ ticket.distance_lbph|floatformat:1 }}
+                    </td>
+                    <td>
+                        <span class="badge badge-yellow">{{ ticket.get_technical_status_display }}</span>
+                    </td>
+                    <td style="font-size:0.78rem; color:var(--muted);">
+                        {% if ticket.camera %}{{ ticket.camera.name }}{% else %}—{% endif %}
+                    </td>
+                    <td style="font-size:0.78rem;">
+                        <div>{{ ticket.detected_at|date:"d/m/Y" }}</div>
+                        <div style="color:var(--muted); font-family:monospace;">{{ ticket.detected_at|time:"H:i:s" }}</div>
+                    </td>
+                    <td>
+                        {% if ticket.status == "pending" %}
+                        <span class="badge badge-yellow">En attente</span>
+                        {% elif ticket.status == "validated" %}
+                        <span class="badge badge-green">Valide</span>
+                        <div style="font-size:0.68rem; color:var(--muted); margin-top:2px;">{{ ticket.reviewed_by }}</div>
+                        {% else %}
+                        <span class="badge badge-muted">Rejete</span>
+                        <div style="font-size:0.68rem; color:var(--muted); margin-top:2px;">{{ ticket.reviewed_by }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if ticket.status == "pending" %}
+                        <a href="{% url 'attendance:review_queue_detail' ticket.id %}"
+                           class="btn btn-primary" style="padding:0.3rem 0.7rem; font-size:0.8rem;">
+                            &#128269; Reviser
+                        </a>
+                        {% else %}
+                        <a href="{% url 'attendance:review_queue_detail' ticket.id %}"
+                           class="btn btn-secondary" style="padding:0.3rem 0.7rem; font-size:0.8rem;">
+                            Voir
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <div style="display:flex; gap:0.5rem; justify-content:center; margin-top:1rem; flex-wrap:wrap;">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter }}&q={{ q }}" class="btn btn-secondary">&#8592; Prev</a>
+        {% endif %}
+        <span style="padding:0.5rem 0.75rem; color:var(--muted); font-size:0.85rem;">
+            Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+        </span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}&status={{ status_filter }}&q={{ q }}" class="btn btn-secondary">Suiv &#8594;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% else %}
+<div class="card" style="text-align:center; padding:3rem 1rem;">
+    <div style="font-size:3rem; margin-bottom:1rem;">&#9989;</div>
+    <p style="color:var(--muted);">Aucun ticket de revue avec ces filtres.</p>
+    {% if not status_filter %}
+    <p style="color:var(--muted); font-size:0.82rem; margin-top:0.5rem;">
+        La file est vide — tous les visages sont reconnus avec haute confiance ou rejetes comme inconnus.
+    </p>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Supprimer la salle — UniPresence{% endblock %}
+{% block page_title %}Supprimer la salle{% endblock %}
+{% block content %}
+<div class="panel" style="max-width:480px;">
+    <div class="panel-body">
+        <p>Confirmer la suppression de la salle <strong>{{ salle }}</strong> ?</p>
+        <div style="display:flex; gap:0.75rem; margin-top:1rem;">
+            <form method="post">{% csrf_token %}
+                <button class="button danger" type="submit">Supprimer</button>
+            </form>
+            <a href="{% url 'attendance:salle_list' %}" class="button secondary">Annuler</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

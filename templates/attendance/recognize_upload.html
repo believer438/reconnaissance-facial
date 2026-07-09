@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Reconnaissance — UniPresence{% endblock %}
+{% block page_title %}Reconnaissance par photo{% endblock %}
+
+{% block content %}
+
+<div class="grid-2" style="align-items:start;">
+
+    <div class="panel">
+        <div class="panel-head">
+            <h3>Uploader une photo</h3>
+        </div>
+        <div class="panel-body">
+            <p style="color:var(--muted); font-size:0.85rem; margin-bottom:1rem;">
+                Uploadez une photo contenant un ou plusieurs visages. Le modele LBPH identifie les etudiants et enregistre les presences automatiquement.
+            </p>
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                {% if sessions %}
+                <div class="form-group" style="margin-bottom:1rem;">
+                    <label for="session_id">Session de cours (optionnel)</label>
+                    <select id="session_id" name="session_id">
+                        <option value="">— Sans session (presence libre) —</option>
+                        {% for session in sessions %}
+                        <option value="{{ session.id }}" {% if selected_session and selected_session.id == session.id %}selected{% endif %}>
+                            {{ session.course.code }} — {{ session.date|date:"d/m/Y" }} {{ session.start_time|time:"H:i" }} {% if session.room %}({{ session.room }}){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <span class="form-help">Associer a une session permet de suivre les absences par cours.</span>
+                </div>
+                {% endif %}
+
+                <div class="form-group" style="margin-bottom:1rem;">
+                    <label for="image">Photo a analyser *</label>
+                    <input type="file" id="image" name="image" accept="image/*" required>
+                    <span class="form-help">JPG ou PNG. Visage bien eclaire, face a la camera. Plusieurs visages possibles.</span>
+                </div>
+                <button class="button primary" type="submit">&#9685; Analyser la photo</button>
+            </form>
+        </div>
+    </div>
+
+    <div>
+        {% if results is not None %}
+        <div class="panel">
+            <div class="panel-head">
+                <h3>Resultats</h3>
+                <span style="font-size:0.78rem; color:var(--muted);">{{ results|length }} visage(s) detecte(s)</span>
+            </div>
+
+            {% if selected_session %}
+            <div style="padding:0.5rem 1rem; background:#eff6ff; border-bottom:1px solid var(--border); font-size:0.8rem;">
+                Session : <strong>{{ selected_session.course.code }}</strong> — {{ selected_session.date|date:"d/m/Y" }} {{ selected_session.start_time|time:"H:i" }}
+            </div>
+            {% endif %}
+
+            {% if results %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Etudiant</th>
+                            <th>Confiance</th>
+                            <th>Statut</th>
+                            <th>Presence</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in results %}
+                        <tr>
+                            <td style="color:var(--muted);">{{ forloop.counter }}</td>
+                            <td>
+                                {% if r.status == 'recognized' and r.student %}
+                                <a href="{% url 'attendance:student_detail' r.student.id %}" style="font-weight:600; color:var(--text);">{{ r.student.full_name }}</a>
+                                <div style="font-size:0.72rem; color:var(--muted);">{{ r.student.student_code }} &middot; {{ r.student.classroom }}</div>
+                                {% else %}
+                                <span style="color:var(--muted);">Visage non identifie</span>
+                                <div style="font-size:0.72rem; color:var(--warning);">Image sauvegardee dans Visages inconnus</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if r.status == 'recognized' %}
+                                <span style="font-weight:700;">{{ r.confidence }}%</span>
+                                {% else %}—{% endif %}
+                            </td>
+                            <td>
+                                {% if r.status == 'recognized' %}<span class="badge badge-green">Reconnu</span>
+                                {% else %}<span class="badge badge-red">Inconnu</span>{% endif %}
+                            </td>
+                            <td>
+                                {% if r.status == 'recognized' %}
+                                    {% if r.already_marked %}<span class="badge badge-yellow">Deja marque</span>
+                                    {% else %}<span class="badge badge-green">Enregistree</span>{% endif %}
+                                {% else %}—{% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div style="padding:0.75rem 1rem; border-top:1px solid var(--border); font-size:0.82rem; color:var(--muted);">
+                {{ saved }} presence(s) enregistree(s). {% if selected_session %}<a href="{% url 'attendance:session_detail' selected_session.id %}">Voir la session &rarr;</a>{% endif %}
+            </div>
+            {% else %}
+            <div class="empty-state">Aucun visage detecte dans l'image.</div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+{% endblock %}

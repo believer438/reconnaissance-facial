@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Etudiants — UniPresence{% endblock %}
+{% block page_title %}Etudiants{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'attendance:student_create' %}" class="button primary sm">+ Ajouter un etudiant</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel" style="margin-bottom:1rem;">
+    <div class="panel-body" style="padding:0.65rem 1rem;">
+        <form method="get" style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+            <input type="text" name="q" value="{{ q }}" placeholder="Rechercher nom, matricule, classe..." style="width:260px;">
+            <select name="faculty" style="width:200px;">
+                <option value="">Toutes les facultes</option>
+                {% for val, label in faculty_choices %}
+                <option value="{{ val }}" {% if faculty_filter == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button class="button secondary" type="submit">Filtrer</button>
+            {% if q or faculty_filter %}
+            <a href="{% url 'attendance:student_list' %}" class="button secondary">Reinitialiser</a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-head">
+        <h3>{{ students|length }} etudiant(s){% if q %} pour "{{ q }}"{% endif %}</h3>
+    </div>
+    {% if students %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Nom complet</th>
+                    <th>Matricule</th>
+                    <th>Faculte</th>
+                    <th>Classe</th>
+                    <th>Photos</th>
+                    <th>Taux</th>
+                    <th>Statut</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr>
+                    <td style="color:var(--muted);">{{ forloop.counter }}</td>
+                    <td>
+                        <a href="{% url 'attendance:student_detail' student.id %}" style="font-weight:600; color:var(--text);">{{ student.full_name }}</a>
+                        {% if student.email %}<div style="font-size:0.72rem; color:var(--muted);">{{ student.email }}</div>{% endif %}
+                    </td>
+                    <td style="font-family:monospace; font-size:0.82rem;">{{ student.student_code }}</td>
+                    <td style="font-size:0.82rem;">{{ student.faculty_display }}</td>
+                    <td>{{ student.classroom }}</td>
+                    <td>
+                        <span class="badge {% if student.photo_total > 0 %}badge-blue{% else %}badge-red{% endif %}">
+                            {{ student.photo_total }}
+                        </span>
+                    </td>
+                    <td>
+                        {% with rate=student.attendance_rate %}
+                        <div style="font-size:0.78rem; font-weight:600; {% if rate >= 80 %}color:var(--success){% elif rate >= 60 %}color:var(--warning){% else %}color:var(--danger){% endif %}">{{ rate }}%</div>
+                        {% endwith %}
+                    </td>
+                    <td>
+                        {% if student.is_active %}
+                        <span class="badge badge-green">Actif</span>
+                        {% else %}
+                        <span class="badge badge-red">Inactif</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'attendance:student_detail' student.id %}" class="button secondary sm">Voir</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        {% if q %}Aucun etudiant trouve pour "{{ q }}".{% else %}Aucun etudiant enregistre.{% endif %}<br>
+        <a href="{% url 'attendance:student_create' %}">Ajouter le premier etudiant</a>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

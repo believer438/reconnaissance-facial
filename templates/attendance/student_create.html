@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+
+{% block title %}Nouvel élève — SecPresence{% endblock %}
+{% block page_title %}Inscrire un nouvel élève{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'attendance:student_list' %}" class="button secondary sm">&larr; Retour à la liste</a>
+{% endblock %}
+
+{% block content %}
+<form method="post" enctype="multipart/form-data" id="student-form">
+{% csrf_token %}
+
+{% if form.non_field_errors %}
+<div class="message error" style="margin-bottom:1rem;">
+    {% for e in form.non_field_errors %}{{ e }}{% endfor %}
+</div>
+{% endif %}
+
+<div class="grid-2" style="align-items:start; gap:1.5rem;">
+
+    <!-- Colonne gauche : Informations -->
+    <div>
+
+        <!-- Section 1 : Identité -->
+        <div class="panel" style="margin-bottom:1.25rem;">
+            <div class="panel-head"><h3>🪪 Identité de l'élève</h3></div>
+            <div class="panel-body">
+                <div class="form-row" style="grid-template-columns:1fr 1fr 1fr;">
+                    <div class="form-group">
+                        <label for="id_nom">Nom de famille *</label>
+                        {{ form.nom }}
+                        {% if form.nom.errors %}<ul class="errorlist">{% for e in form.nom.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_post_nom">Post-nom</label>
+                        {{ form.post_nom }}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_prenom">Prénom(s)</label>
+                        {{ form.prenom }}
+                    </div>
+                </div>
+                <div class="form-row" style="grid-template-columns:1fr 1fr 1fr;">
+                    <div class="form-group">
+                        <label for="id_sexe">Sexe</label>
+                        {{ form.sexe }}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_date_of_birth">Date de naissance</label>
+                        {{ form.date_of_birth }}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_lieu_naissance">Lieu de naissance</label>
+                        {{ form.lieu_naissance }}
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="id_adresse">Adresse</label>
+                        {{ form.adresse }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2 : Scolarité -->
+        <div class="panel" style="margin-bottom:1.25rem;">
+            <div class="panel-head"><h3>🎓 Scolarité</h3></div>
+            <div class="panel-body">
+                <div class="form-row" style="grid-template-columns:1fr 1fr;">
+                    <div class="form-group">
+                        <label>Matricule *</label>
+                        <div class="mode-inline">
+                            {% for radio in form.matricule_mode %}
+                            <label>{{ radio.tag }} <span>{{ radio.choice_label }}</span></label>
+                            {% endfor %}
+                        </div>
+                        <div id="manual-code-wrap" style="margin-top:0.5rem;">
+                            {{ form.student_code }}
+                            <span id="student-code-status" class="form-help"></span>
+                        </div>
+                        {% if form.student_code.errors %}<ul class="errorlist">{% for e in form.student_code.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_classe">Classe</label>
+                        {{ form.classe }}
+                        {% if not form.classe.field.queryset.count %}
+                        <span class="form-help" style="color:#eab308;">Aucune classe. <a href="{% url 'attendance:classe_list' %}" style="color:#eab308;">Créez-en une d'abord.</a></span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="form-row" style="grid-template-columns:1fr 1fr;">
+                    <div class="form-group">
+                        <label for="id_section">Section</label>
+                        {{ form.section }}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_annee_scolaire">Année scolaire</label>
+                        {{ form.annee_scolaire }}
+                    </div>
+                </div>
+                <div class="form-row" style="grid-template-columns:1fr 1fr;">
+                    <div class="form-group">
+                        <label for="id_date_inscription">Date d'inscription</label>
+                        {{ form.date_inscription }}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_statut">Statut</label>
+                        {{ form.statut }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 3 : Parent / Tuteur -->
+        <div class="panel" style="margin-bottom:1.25rem;">
+            <div class="panel-head"><h3>👨‍👩‍👦 Parent / Tuteur</h3></div>
+            <div class="panel-body">
+                <div class="form-row" style="grid-template-columns:1fr 1fr;">
+                    <div class="form-group">
+                        <label for="id_parent_nom">Nom du parent / tuteur</label>
+                        {{ form.parent_nom }}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_parent_telephone">Téléphone du parent</label>
+                        {{ form.parent_telephone }}
+                    </div>
+                </div>
+                <div class="form-row" style="grid-template-columns:1fr 1fr;">
+                    <div class="form-group">
+                        <label for="id_email">Email (élève)</label>
+                        {{ form.email }}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_phone">Téléphone (élève)</label>
+                        {{ form.phone }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Photo de profil -->
+        <div class="panel" style="margin-bottom:1.25rem;">
+            <div class="panel-head"><h3>🖼 Photo de profil officielle</h3></div>
+            <div class="panel-body">
+                <div id="profil-preview" style="text-align:center; margin-bottom:0.75rem; display:none;">
+                    <img id="profil-img" src="" alt="Aperçu" style="max-height:140px; border-radius:8px; border:2px solid var(--border);">
+                </div>
+                <div class="form-group">
+                    <label for="id_photo_profil">Photo de profil</label>
+                    {{ form.photo_profil }}
+                    <span class="form-help">Photo officielle de l'élève (JPG, PNG).</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Colonne droite : Photos reconnaissances faciale -->
+    <div>
+        <div class="panel">
+            <div class="panel-head">
+                <h3>🤳 Photos pour la reconnaissance faciale</h3>
+                <span id="photo-count-badge" style="font-size:0.8rem; background:var(--border); padding:2px 8px; border-radius:20px;">0 / 10 min</span>
+            </div>
+            <div class="panel-body">
+
+                <!-- Guide des angles -->
+                <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:0.5rem; margin-bottom:0.75rem; text-align:center;">
+                    <div style="padding:0.5rem; background:var(--surface-hover); border-radius:6px; border:1px solid var(--border); font-size:0.72rem; color:var(--muted);">😊<br>Face</div>
+                    <div style="padding:0.5rem; background:var(--surface-hover); border-radius:6px; border:1px solid var(--border); font-size:0.72rem; color:var(--muted);">😤<br>Gauche</div>
+                    <div style="padding:0.5rem; background:var(--surface-hover); border-radius:6px; border:1px solid var(--border); font-size:0.72rem; color:var(--muted);">😒<br>Droite</div>
+                    <div style="padding:0.5rem; background:var(--surface-hover); border-radius:6px; border:1px solid var(--border); font-size:0.72rem; color:var(--muted);">🤔<br>Incliné</div>
+                </div>
+
+                <p style="font-size:0.8rem; color:var(--muted); margin-bottom:0.75rem;">
+                    Prenez <strong>10 à 30 photos</strong> sous différents angles et expressions pour une reconnaissance fiable. Aucun réentraînement complet n'est nécessaire.
+                </p>
+
+                <!-- Webcam -->
+                <div style="position:relative; margin-bottom:0.75rem;">
+                    <video id="webcam" autoplay muted playsinline style="width:100%; border-radius:6px; border:1px solid var(--border); display:none; background:#000; max-height:240px; object-fit:cover;"></video>
+                    <canvas id="canvas" style="display:none;"></canvas>
+                    <div id="webcam-placeholder" style="border:2px dashed var(--border); border-radius:6px; padding:1.5rem; text-align:center; color:var(--muted); background:var(--surface-hover);">
+                        <div style="font-size:2rem;">📷</div>
+                        <div style="font-size:0.82rem; margin-top:0.3rem;">Caméra inactive</div>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem; flex-wrap:wrap; align-items:center;">
+                    <select id="angle-select" style="flex:1; min-width:110px; padding:0.4rem 0.6rem; background:var(--surface); border:1px solid var(--border); border-radius:4px; color:var(--text); font-size:0.85rem;">
+                        <option value="face">😊 Face</option>
+                        <option value="gauche">😤 Gauche</option>
+                        <option value="droite">😒 Droite</option>
+                        <option value="incline">🤔 Incliné</option>
+                        <option value="autre">Autre</option>
+                    </select>
+                    <button type="button" id="btn-start-cam" class="button secondary sm">📷 Activer</button>
+                    <button type="button" id="btn-capture" class="button primary sm" disabled>📸 Capturer</button>
+                </div>
+
+                <!-- Upload fichiers -->
+                <div class="form-group" style="margin-bottom:0.75rem;">
+                    <label for="photos">Ou importer des photos</label>
+                    <input type="file" id="photos" name="photos" accept="image/*" multiple>
+                    <span class="form-help">Maintenez Ctrl/Cmd pour plusieurs fichiers (max 30).</span>
+                </div>
+
+                <!-- Grille aperçu -->
+                <div id="captured-grid" style="display:grid; grid-template-columns:repeat(5,1fr); gap:0.35rem; margin-top:0.5rem;"></div>
+                <div id="photos-hidden-container"></div>
+
+                <!-- Barre de progression -->
+                <div style="margin-top:0.75rem;">
+                    <div style="display:flex; justify-content:space-between; font-size:0.78rem; color:var(--muted); margin-bottom:4px;">
+                        <span>Progression</span><span id="progress-label">0 photo(s)</span>
+                    </div>
+                    <div style="background:var(--border); border-radius:4px; height:6px; overflow:hidden;">
+                        <div id="progress-bar" style="height:100%; background:var(--primary); width:0%; transition:width 0.3s;"></div>
+                    </div>
+                    <div id="min-warning" style="display:none; margin-top:0.4rem; font-size:0.78rem; color:#eab308;">⚠ Min. 10 photos recommandées.</div>
+                    <div id="min-ok" style="display:none; margin-top:0.4rem; font-size:0.78rem; color:#4ade80;">✓ Nombre de photos suffisant.</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top:1.25rem; display:flex; gap:0.75rem;">
+            <button class="button primary" type="submit" style="flex:1;">✅ Enregistrer l'élève</button>
+            <a href="{% url 'attendance:student_list' %}" class="button secondary">Annuler</a>
+        </div>
+    </div>
+</div>
+</form>
+
+<script>
+(function() {
+    const MIN=10, MAX=30;
+    let blobs = [], stream = null;
+    const video = document.getElementById('webcam');
+    const canvas = document.getElementById('canvas');
+    const placeholder = document.getElementById('webcam-placeholder');
+    const btnStart = document.getElementById('btn-start-cam');
+    const btnCapture = document.getElementById('btn-capture');
+    const grid = document.getElementById('captured-grid');
+    const hiddenCont = document.getElementById('photos-hidden-container');
+    const badge = document.getElementById('photo-count-badge');
+    const bar = document.getElementById('progress-bar');
+    const lbl = document.getElementById('progress-label');
+    const warn = document.getElementById('min-warning');
+    const ok = document.getElementById('min-ok');
+    const codeInput = document.getElementById('id_student_code');
+    const codeStatus = document.getElementById('student-code-status');
+    const manualCodeWrap = document.getElementById('manual-code-wrap');
+    const codeModeInputs = document.querySelectorAll('input[name="matricule_mode"]');
+
+    function updateUI() {
+        const n = blobs.length;
+        const pct = Math.min(n/MIN*100, 100);
+        bar.style.width = pct+'%';
+        bar.style.background = n>=MIN ? '#4ade80' : 'var(--primary)';
+        lbl.textContent = n+' photo(s)';
+        badge.textContent = n+' / '+MIN+' min';
+        badge.style.background = n>=MIN ? 'rgba(74,222,128,0.2)' : 'var(--border)';
+        badge.style.color = n>=MIN ? '#4ade80' : '';
+        warn.style.display = (n>0&&n<MIN)?'block':'none';
+        ok.style.display = n>=MIN?'block':'none';
+    }
+
+    function selectedCodeMode() {
+        const checked = document.querySelector('input[name="matricule_mode"]:checked');
+        return checked ? checked.value : 'auto';
+    }
+
+    function updateCodeMode() {
+        const manual = selectedCodeMode() === 'manual';
+        if (manualCodeWrap) manualCodeWrap.style.display = manual ? 'block' : 'none';
+        if (!manual && codeInput) {
+            codeInput.value = '';
+            if (codeStatus) codeStatus.textContent = 'Generation automatique a l\\'enregistrement.';
+        } else if (codeInput && codeInput.value.trim()) {
+            checkCode();
+        } else if (codeStatus) {
+            codeStatus.textContent = '';
+        }
+    }
+
+    let codeTimer = null;
+    function checkCode() {
+        if (!codeInput || !codeStatus || selectedCodeMode() !== 'manual') return;
+        const code = codeInput.value.trim();
+        if (!code) {
+            codeStatus.textContent = '';
+            return;
+        }
+        fetch("{% url 'attendance:api_student_code_check' %}?code=" + encodeURIComponent(code))
+            .then(r => r.json())
+            .then(data => {
+                codeStatus.textContent = data.message;
+                codeStatus.style.color = data.available ? '#4ade80' : '#ef4444';
+            })
+            .catch(() => {});
+    }
+
+    function rebuildHidden() {
+        hiddenCont.innerHTML = '';
+        const dt = new DataTransfer();
+        blobs.forEach(({blob,name}) => dt.items.add(new File([blob], name, {type:'image/jpeg'})));
+        const inp = Object.assign(document.createElement('input'), {type:'file',name:'photos_webcam',multiple:true,style:'display:none'});
+        hiddenCont.appendChild(inp);
+        try { inp.files = dt.files; } catch(e) {}
+    }
+
+    function addThumb(blob, angle) {
+        const url = URL.createObjectURL(blob);
+        const div = document.createElement('div');
+        div.style.cssText = 'position:relative;';
+        div.innerHTML = '<img src="'+url+'" style="width:100%;border-radius:4px;border:1px solid var(--border);aspect-ratio:1;object-fit:cover;">'
+            +'<span style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,.7);color:#fff;font-size:0.55rem;padding:1px 4px;border-radius:2px;">'+angle+'</span>'
+            +'<button type="button" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.7);color:#fff;border:none;width:16px;height:16px;cursor:pointer;font-size:0.6rem;border-radius:2px;">×</button>';
+        div.querySelector('button').onclick = () => {
+            const idx = blobs.indexOf(blobs.find(b=>b.blob===blob));
+            if(idx>=0) blobs.splice(idx,1);
+            div.remove(); rebuildHidden(); updateUI();
+        };
+        grid.appendChild(div);
+    }
+
+    btnStart.addEventListener('click', async () => {
+        if(stream) {
+            stream.getTracks().forEach(t=>t.stop()); stream=null;
+            video.style.display='none'; placeholder.style.display='block';
+            btnCapture.disabled=true; btnStart.textContent='📷 Activer'; return;
+        }
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({video:{width:640,height:480}});
+            video.srcObject=stream; video.style.display='block'; placeholder.style.display='none';
+            btnCapture.disabled=false; btnStart.textContent='⏹ Désactiver';
+        } catch(e) { alert('Caméra inaccessible : '+e.message); }
+    });
+
+    btnCapture.addEventListener('click', () => {
+        if(!stream||blobs.length>=MAX) return;
+        canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+        canvas.getContext('2d').drawImage(video,0,0);
+        const angle = document.getElementById('angle-select').value;
+        canvas.toBlob(blob => {
+            const name='cap_'+Date.now()+'_'+angle+'.jpg';
+            blobs.push({blob,name,angle}); addThumb(blob,angle); rebuildHidden(); updateUI();
+        }, 'image/jpeg', 0.92);
+    });
+
+    /* Aperçu photo profil */
+    const pp=document.getElementById('id_photo_profil');
+    if(pp) pp.addEventListener('change', function(){
+        if(this.files&&this.files[0]){
+            document.getElementById('profil-img').src=URL.createObjectURL(this.files[0]);
+            document.getElementById('profil-preview').style.display='block';
+        }
+    });
+
+    updateUI();
+    codeModeInputs.forEach(input => input.addEventListener('change', updateCodeMode));
+    if (codeInput) {
+        codeInput.addEventListener('input', () => {
+            clearTimeout(codeTimer);
+            codeTimer = setTimeout(checkCode, 350);
+        });
+    }
+    updateCodeMode();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Modifier Presence — {{ student.full_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">&#9998; Modifier la presence</h1>
+    <p class="page-subtitle">{{ student.full_name }} &mdash; {{ record.date|date:"d/m/Y" }}</p>
+</div>
+
+{% if messages %}
+<div style="margin-bottom:1rem;">
+    {% for msg in messages %}
+    <div class="alert {% if msg.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">{{ msg }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+    <!-- Infos élève -->
+    <div class="card">
+        <h2 class="card-title">&#128100; Informations eleve</h2>
+        <table style="width:100%; border-collapse:collapse;">
+            <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:0.6rem 0; color:var(--muted); font-size:0.82rem; width:40%;">Nom complet</td>
+                <td style="padding:0.6rem 0; font-weight:600;">{{ student.full_name }}</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:0.6rem 0; color:var(--muted); font-size:0.82rem;">Code</td>
+                <td style="padding:0.6rem 0; font-family:monospace;">{{ student.student_code }}</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:0.6rem 0; color:var(--muted); font-size:0.82rem;">Classe</td>
+                <td style="padding:0.6rem 0;"><span class="badge badge-blue">{{ student.classe }}</span></td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:0.6rem 0; color:var(--muted); font-size:0.82rem;">Statut actuel</td>
+                <td style="padding:0.6rem 0;"><span class="badge {{ record.status_badge_class }}">{{ record.get_status_display }}</span></td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:0.6rem 0; color:var(--muted); font-size:0.82rem;">Arrivee enregistree</td>
+                <td style="padding:0.6rem 0; font-family:monospace;">
+                    {% if record.heure_entree %}{{ record.heure_entree|time:"H:i:s" }}{% else %}<span style="color:var(--muted);">— non enregistree —</span>{% endif %}
+                </td>
+            </tr>
+            {% if record.camera_entree %}
+            <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:0.6rem 0; color:var(--muted); font-size:0.82rem;">Camera entree</td>
+                <td style="padding:0.6rem 0;">{{ record.camera_entree.name }}</td>
+            </tr>
+            {% endif %}
+            {% if record.modified_by %}
+            <tr>
+                <td style="padding:0.6rem 0; color:var(--muted); font-size:0.82rem;">Dernier modificateur</td>
+                <td style="padding:0.6rem 0; font-size:0.82rem;">{{ record.modified_by }}</td>
+            </tr>
+            {% endif %}
+        </table>
+    </div>
+
+    <!-- Formulaire de modification -->
+    <div class="card">
+        <h2 class="card-title">&#128221; Modifier</h2>
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label class="form-label">Nouveau statut *</label>
+                {{ form.nouveau_statut }}
+                {% if form.nouveau_statut.errors %}<div class="form-error">{{ form.nouveau_statut.errors }}</div>{% endif %}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Heure d'arrivee</label>
+                {{ form.heure_entree }}
+                {% if form.heure_entree.errors %}<div class="form-error">{{ form.heure_entree.errors }}</div>{% endif %}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Type de justificatif</label>
+                {{ form.excuse_reason }}
+                {% if form.excuse_reason.errors %}<div class="form-error">{{ form.excuse_reason.errors }}</div>{% endif %}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Notes / Details</label>
+                {{ form.excuse_notes }}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Modifie par *</label>
+                {{ form.modifie_par }}
+            </div>
+
+            <div style="display:flex; gap:1rem; margin-top:1.5rem;">
+                <button type="submit" class="btn btn-primary" style="flex:1;">
+                    &#9989; Enregistrer la modification
+                </button>
+                <a href="{% url 'attendance:daily_attendance_list' %}?date={{ record.date|date:'Y-m-d' }}" class="btn btn-secondary">
+                    Annuler
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

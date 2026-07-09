@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}Session {{ session.date }} — UniPresence{% endblock %}
+{% block page_title %}Session — {{ session.course.code }}{% endblock %}
+
+{% block topbar_actions %}
+{% if session.status == 'en_attente' %}
+<form method="post" action="{% url 'attendance:session_open' session.id %}" style="display:inline;">
+    {% csrf_token %}
+    <button class="button primary sm" type="submit">&#9654; Ouvrir la session</button>
+</form>
+{% elif session.status == 'ouvert' %}
+<a href="{% url 'attendance:recognize_upload' %}?session={{ session.id }}" class="button primary sm">&#9685; Reconnaissance</a>
+<form method="post" action="{% url 'attendance:session_close' session.id %}" style="display:inline;"
+      onsubmit="return confirm('Fermer la session et generer les absences automatiquement ?');">
+    {% csrf_token %}
+    <button class="button secondary sm" type="submit" style="color:var(--danger);">&#9632; Fermer + Absences auto</button>
+</form>
+{% endif %}
+<a href="{% url 'attendance:course_detail' session.course.id %}" class="button secondary sm">&larr; Cours</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="status-bar" style="margin-bottom:1.5rem;">
+    <div class="status-item"><strong>{{ session.course.code }}</strong> — {{ session.course.name }}</div>
+    {% if session.schedule %}<div class="status-item" style="color:var(--muted);">{{ session.schedule.classe }}</div>{% endif %}
+    <div class="status-item">&#128197; {{ session.date|date:"d/m/Y" }}</div>
+    <div class="status-item">&#128336; {{ session.start_time|time:"H:i" }}{% if session.end_time %} – {{ session.end_time|time:"H:i" }}{% endif %}</div>
+    <div class="status-item" style="color:var(--muted); font-size:0.8rem;">
+        Tolerance : {{ session.late_after_minutes }} min &middot; Fenetre pre-cours : {{ session.minutes_avant_cours }} min
+    </div>
+    {% if session.room %}<div class="status-item">&#128205; {{ session.room }}</div>{% endif %}
+    <div class="status-item" style="margin-left:auto;">
+        {% if session.status == 'en_attente' %}
+        <span class="badge-warning">En attente</span>
+        {% elif session.status == 'ouvert' %}
+        <span class="badge-success">&#9679; Ouverte</span>
+        {% elif session.status == 'ferme' %}
+        <span class="badge-muted">Fermee</span>
+        {% elif session.status == 'annule' %}
+        <span class="badge badge-red">Annulee</span>
+        {% endif %}
+    </div>
+</div>
+
+{% if session.status == 'annule' %}
+<div class="message error" style="margin-bottom:1.5rem;">
+    <strong>Session annulee.</strong>
+    {% if session.motif_annulation %}Motif : {{ session.motif_annulation }}{% endif %}
+    Aucune absence n'a ete generee.
+</div>
+{% elif session.status == 'en_attente' %}
+<div class="message" style="margin-bottom:1.5rem; background:rgba(234,179,8,0.08); border-color:rgba(234,179,8,0.3); color:#eab308;">
+    <strong>Session en attente.</strong> Cliquez sur "Ouvrir la session" pour autoriser la reconnaissance faciale.
+    Les etudiants peuvent etre detectes {{ session.minutes_avant_cours }} minute(s) avant le debut.
+</div>
+{% elif session.status == 'ouvert' %}
+<div class="message" style="margin-bottom:1.5rem; background:rgba(34,197,94,0.08); border-color:rgba(34,197,94,0.3); color:#22c55e;">
+    <strong>&#9679; Session ouverte.</strong> La reconnaissance faciale est active.
+    Fermez la session pour generer les absences automatiquement.
+</div>
+{% endif %}
+
+<div class="stats-grid" style="grid-template-columns:repeat(4,1fr); margin-bottom:1.5rem;">
+    <div class="stat-card">
+        <div class="label">Inscrits</div>
+        <div class="value">{{ enrolled_count }}</div>
+        <div class="sub">etudiants</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Presents / Excuses</div>
+        <div class="value" style="color:var(--success);">{{ present_count }}</div>
+        <div class="sub">reconnus</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Non encore marques</div>
+        <div class="value" style="color:{% if absent_count > 0 %}var(--danger){% else %}var(--success){% endif %};">{{ absent_count }}</div>
+        <div class="sub">en attente</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Taux</div>
+        <div class="value">{% if enrolled_count > 0 %}{{ present_count|floatformat:0 }}{% else %}0{% endif %}%</div>
+        <div class="sub">de presence</div>
+    </div>
+</div>
+
+<div class="panel" style="margin-bottom:1.5rem;">
+    <div class="panel-head">
+        <h3>Liste de presence</h3>
+        {% if session.status == 'ouvert' and absent_count > 0 %}
+        <form method="post" action="{% url 'attendance:session_mark_absent' session.id %}">
+            {% csrf_token %}
+            <button class="button secondary sm" type="submit" style="color:var(--danger);"
+                    onclick="return confirm('Fermer et marquer {{ absent_count }} absent(s) ?');">
+                Fermer + {{ absent_count }} absent(s) auto
+            </button>
+        </form>
+        {% endif %}
+    </div>
+    {% if rows %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Etudiant</th>
+                    <th>Matricule</th>
+                    <th>Classe</th>
+                    <th>Statut</th>
+                    <th>Justificatif</th>
+                    <th>Heure</th>
+                    <th>Confiance</th>
+                    <th>Source</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td style="color:var(--muted);">{{ forloop.counter }}</td>
+                    <td>
+                        <a href="{% url 'attendance:student_detail' row.student.id %}" style="color:var(--text); font-weight:600;">{{ row.student.full_name }}</a>
+                    </td>
+                    <td style="font-family:monospace; font-size:0.78rem;">{{ row.student.student_code }}</td>
+                    <td style="font-size:0.78rem; color:var(--muted);">{{ row.student.classe_display }}</td>
+                    <td>
+                        {% if row.record %}
+                            {% if row.record.status == 'present' %}<span class="badge badge-green">Present</span>
+                            {% elif row.record.status == 'late' %}<span class="badge badge-yellow">Retard</span>
+                            {% elif row.record.status == 'absent' %}<span class="badge badge-red">Absent</span>
+                            {% elif row.record.status == 'excuse' %}<span class="badge badge-blue">Excuse</span>
+                            {% else %}<span class="badge badge-muted">{{ row.record.get_status_display }}</span>{% endif %}
+                            {% if row.record.modified_by %}
+                            <span title="Modifie manuellement par {{ row.record.modified_by }}" style="font-size:0.65rem; color:var(--muted);">&#9998;</span>
+                            {% endif %}
+                        {% else %}
+                        <span class="badge" style="color:var(--muted); border-color:var(--border);">Non marque</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:0.78rem; color:var(--muted);">
+                        {% if row.record and row.record.excuse_reason %}{{ row.record.get_excuse_reason_display }}{% else %}—{% endif %}
+                    </td>
+                    <td style="color:var(--muted);">
+                        {% if row.record %}{{ row.record.recognized_at|date:"H:i" }}{% else %}—{% endif %}
+                    </td>
+                    <td style="color:var(--muted);">
+                        {% if row.record and row.record.confidence_score %}{{ row.record.confidence_score|floatformat:1 }}%{% else %}—{% endif %}
+                    </td>
+                    <td style="color:var(--muted); font-size:0.75rem;">
+                        {% if row.record %}{{ row.record.source }}{% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if row.record %}
+                        <a href="{% url 'attendance:attendance_edit' row.record.id %}" class="button secondary sm">Modifier</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">Aucun etudiant dans cette session.<br>Associez un horaire ou inscrivez des etudiants au cours.</div>
+    {% endif %}
+</div>
+
+<!-- Actions bas de page -->
+<div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+    {% if session.status == 'ouvert' %}
+    <a href="{% url 'attendance:recognize_upload' %}" class="button primary">&#9685; Lancer la reconnaissance</a>
+    {% endif %}
+
+    {% if session.status == 'en_attente' or session.status == 'ouvert' %}
+    <!-- Annuler la session -->
+    <button class="button secondary" type="button" style="color:var(--danger);"
+            onclick="document.getElementById('cancel-panel').style.display='block'; this.style.display='none';">
+        &#10005; Annuler le cours
+    </button>
+    <div id="cancel-panel" style="display:none; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); padding:1rem; flex:1; min-width:300px;">
+        <form method="post" action="{% url 'attendance:session_cancel' session.id %}">
+            {% csrf_token %}
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+                {{ cancel_form.motif_annulation }}
+                <button class="button danger" type="submit">Confirmer l'annulation</button>
+            </div>
+            <span style="font-size:0.75rem; color:var(--muted);">Aucune absence ne sera generee pour ce cours annule.</span>
+        </form>
+    </div>
+    {% endif %}
+
+    <form method="post" action="{% url 'attendance:session_delete' session.id %}"
+          style="margin-left:auto;">
+        {% csrf_token %}
+        <button type="submit" class="button secondary" style="color:var(--danger);"
+                onclick="return confirm('Supprimer cette session et toutes ses presences ?');">
+            Supprimer la session
+        </button>
+    </form>
+</div>
+
+{% endblock %}

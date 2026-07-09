@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Visages inconnus — UniPresence{% endblock %}
+{% block page_title %}Visages inconnus{% endblock %}
+
+{% block content %}
+
+<div class="status-bar" style="margin-bottom:1.5rem;">
+    <div class="status-item">
+        <span class="status-dot warn"></span>
+        <strong>{{ page_obj.paginator.count }}</strong> visage(s) non identifie(s) capture(s)
+    </div>
+    <div class="status-item" style="margin-left:auto; font-size:0.8rem; color:var(--muted);">
+        Ces visages n'ont pas ete reconnus par le modele LBPH. Verifiez si ce sont des etudiants non enregistres.
+    </div>
+</div>
+
+{% if page_obj.object_list %}
+<div class="panel">
+    <div class="panel-head">
+        <h3>Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</h3>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:0; border-top:1px solid var(--border);">
+        {% for log in page_obj %}
+        <div style="border-right:1px solid var(--border); border-bottom:1px solid var(--border); {% if forloop.counter|divisibleby:6 %}border-right:none;{% endif %}">
+            {% if log.image %}
+            <img src="{{ log.image.url }}" style="width:100%; aspect-ratio:1/1; object-fit:cover; display:block;">
+            {% else %}
+            <div style="width:100%; aspect-ratio:1/1; background:#f3f4f6; display:flex; align-items:center; justify-content:center; font-size:2rem; color:var(--muted);">?</div>
+            {% endif %}
+            <div style="padding:0.4rem 0.5rem; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:0.68rem; color:var(--muted);">{{ log.detected_at|date:"d/m H:i" }}</span>
+                <form method="post" action="{% url 'attendance:unknown_face_delete' log.id %}">
+                    {% csrf_token %}
+                    <button type="submit" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:0.75rem; padding:0;" title="Supprimer">&#10005;</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% if page_obj.has_other_pages %}
+    <div class="pagination">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}">&laquo;</a>
+        {% endif %}
+        <span class="current">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}">&raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<p style="font-size:0.82rem; color:var(--muted); margin-top:1rem;">
+    Astuce : Si vous reconnaissez un visage ici, ajoutez cet etudiant au systeme avec
+    <a href="{% url 'attendance:student_create' %}">Ajouter un etudiant</a>, ajoutez ses photos, reentrai­nez le modele.
+</p>
+
+{% else %}
+<div class="empty-state">
+    Aucun visage inconnu capture.<br>
+    Tous les visages detectes ont ete identifies avec succes.
+</div>
+{% endif %}
+
+{% endblock %}

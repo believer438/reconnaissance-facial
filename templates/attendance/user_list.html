@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Gestion des utilisateurs{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+    <div>
+        <h1 class="page-title">&#128101; Gestion des utilisateurs</h1>
+        <p class="page-subtitle">Créer, modifier et gérer les comptes du système UniPresence</p>
+    </div>
+    <a href="{% url 'attendance:user_create' %}" class="btn btn-primary">&#43; Nouvel utilisateur</a>
+</div>
+
+{% if messages %}
+<div style="margin-bottom:1rem;">
+    {% for msg in messages %}
+    <div class="alert {% if msg.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">{{ msg }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- KPIs -->
+<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:1.5rem;">
+    <div class="stat-card" style="border-left:3px solid var(--primary);">
+        <div class="stat-value">{{ users|length }}</div>
+        <div class="stat-label">Utilisateurs total</div>
+    </div>
+    <div class="stat-card" style="border-left:3px solid var(--success);">
+        <div class="stat-value" style="color:var(--success);">{{ nb_active }}</div>
+        <div class="stat-label">Comptes actifs</div>
+    </div>
+    <div class="stat-card" style="border-left:3px solid var(--warning);">
+        <div class="stat-value" style="color:var(--warning);">{{ nb_staff }}</div>
+        <div class="stat-label">Administrateurs</div>
+    </div>
+</div>
+
+<div class="card">
+    {% if users %}
+    <div style="overflow-x:auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Utilisateur</th>
+                    <th>Nom complet</th>
+                    <th>Email</th>
+                    <th>Rôle</th>
+                    <th>Dernière connexion</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr style="{% if not u.is_active %}opacity:0.5;{% endif %}">
+                    <td>
+                        <div style="display:flex; align-items:center; gap:0.6rem;">
+                            <div style="width:36px; height:36px; border-radius:50%;
+                                background:linear-gradient(135deg,
+                                {% if u.is_superuser %}#f59e0b,#d97706{% elif u.is_staff %}var(--primary),#6366f1{% else %}var(--success),#16a34a{% endif %});
+                                display:flex; align-items:center; justify-content:center;
+                                font-size:0.9rem; font-weight:800; color:#fff; flex-shrink:0;">
+                                {{ u.username|first|upper }}
+                            </div>
+                            <div>
+                                <div style="font-weight:700; font-family:monospace; font-size:0.85rem;">{{ u.username }}</div>
+                                {% if u == request.user %}
+                                <span style="font-size:0.65rem; color:var(--primary); font-weight:600;">← vous</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ u.get_full_name|default:"—" }}</td>
+                    <td style="font-size:0.82rem; color:var(--muted);">{{ u.email|default:"—" }}</td>
+                    <td>
+                        {% if u.is_superuser %}
+                        <span class="badge badge-yellow">&#9733; Super-admin</span>
+                        {% elif u.is_staff %}
+                        <span class="badge badge-blue">&#128737; Staff</span>
+                        {% else %}
+                        <span class="badge badge-muted">Utilisateur</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:0.78rem; color:var(--muted);">
+                        {% if u.last_login %}
+                        {{ u.last_login|date:"d/m/Y H:i" }}
+                        {% else %}
+                        Jamais connecté
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if u.is_active %}
+                        <span class="badge badge-green">Actif</span>
+                        {% else %}
+                        <span class="badge badge-muted">Désactivé</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+                            <a href="{% url 'attendance:user_edit' u.id %}"
+                               class="btn btn-secondary" style="padding:0.25rem 0.6rem; font-size:0.75rem;">
+                                &#9999; Modifier
+                            </a>
+                            <a href="{% url 'attendance:user_reset_password' u.id %}"
+                               class="btn btn-secondary" style="padding:0.25rem 0.6rem; font-size:0.75rem;">
+                                &#128272; MDP
+                            </a>
+                            {% if u != request.user %}
+                            <form method="post" action="{% url 'attendance:user_toggle_active' u.id %}"
+                                  style="display:inline;"
+                                  onsubmit="return confirm('{% if u.is_active %}Désactiver{% else %}Réactiver{% endif %} {{ u.username }} ?')">
+                                {% csrf_token %}
+                                <button type="submit"
+                                    class="btn {% if u.is_active %}btn-danger{% else %}btn-secondary{% endif %}"
+                                    style="padding:0.25rem 0.6rem; font-size:0.75rem;">
+                                    {% if u.is_active %}&#9940;{% else %}&#9989;{% endif %}
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align:center; padding:3rem 1rem;">
+        <div style="font-size:3rem; margin-bottom:1rem;">&#128101;</div>
+        <p style="color:var(--muted);">Aucun utilisateur trouvé.</p>
+        <a href="{% url 'attendance:user_create' %}" class="btn btn-primary" style="margin-top:1rem;">Créer le premier utilisateur</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
