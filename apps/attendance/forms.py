@@ -367,8 +367,18 @@ class CameraForm(forms.ModelForm):
             (Camera.ZONE_CHECK_IN, "Entree ecole (CHECK-IN)"),
             (Camera.ZONE_MONITORING, "Surveillance uniquement"),
         ]
+        self.fields["zone_type"].required = False
+        self.fields["zone_type"].initial = Camera.ZONE_CHECK_IN
         self.fields["zone_type"].help_text = "Seule la zone CHECK-IN enregistre la presence. La sortie n'est pas prise en compte."
         self.fields["zone_type"].widget.attrs.update({"class": "form-select"})
+        self.fields["detection_mode"].required = False
+        self.fields["detection_mode"].initial = Camera.MODE_RECOGNITION
+
+    def clean_zone_type(self):
+        return self.cleaned_data.get("zone_type") or Camera.ZONE_CHECK_IN
+
+    def clean_detection_mode(self):
+        return self.cleaned_data.get("detection_mode") or Camera.MODE_RECOGNITION
 
 
 class ClassroomScheduleForm(forms.ModelForm):

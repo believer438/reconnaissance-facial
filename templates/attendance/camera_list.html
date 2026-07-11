@@ -16,20 +16,26 @@
         <div class="panel-body">
             <form method="post">
                 {% csrf_token %}
+                {% if form.non_field_errors %}
+                <div class="form-error">{{ form.non_field_errors.0 }}</div>
+                {% endif %}
                 <div class="form-row">
                     <div class="form-group">
                         <label>Nom *</label>
                         {{ form.name }}
+                        {% if form.name.errors %}<span class="form-error">{{ form.name.errors.0 }}</span>{% endif %}
                     </div>
                 </div>
                 <div class="form-row" style="grid-template-columns:1fr 1fr;">
                     <div class="form-group">
                         <label>Type *</label>
                         {{ form.camera_type }}
+                        {% if form.camera_type.errors %}<span class="form-error">{{ form.camera_type.errors.0 }}</span>{% endif %}
                     </div>
                     <div class="form-group">
                         <label>Emplacement</label>
                         {{ form.location }}
+                        {% if form.location.errors %}<span class="form-error">{{ form.location.errors.0 }}</span>{% endif %}
                     </div>
                 </div>
                 <div class="form-row">
@@ -37,6 +43,7 @@
                         <label>Source</label>
                         {{ form.source }}
                         <span class="form-help">Vide = webcam navigateur &nbsp;|&nbsp; 0 ou 1 = USB &nbsp;|&nbsp; rtsp://192.168.x.x:554/stream = IP</span>
+                        {% if form.source.errors %}<span class="form-error">{{ form.source.errors.0 }}</span>{% endif %}
                     </div>
                 </div>
                 <div class="form-row" style="grid-template-columns:1fr 1fr;">
@@ -47,6 +54,8 @@
                             <span style="color:var(--muted);">×</span>
                             {{ form.resolution_h }}
                         </div>
+                        {% if form.resolution_w.errors %}<span class="form-error">{{ form.resolution_w.errors.0 }}</span>{% endif %}
+                        {% if form.resolution_h.errors %}<span class="form-error">{{ form.resolution_h.errors.0 }}</span>{% endif %}
                     </div>
                     <div class="form-group" style="justify-content:flex-end; flex-direction:row; align-items:center; gap:0.5rem;">
                         {{ form.is_active }}
@@ -57,6 +66,7 @@
                     <div class="form-group">
                         <label>Notes</label>
                         {{ form.notes }}
+                        {% if form.notes.errors %}<span class="form-error">{{ form.notes.errors.0 }}</span>{% endif %}
                     </div>
                 </div>
                 <button class="button primary" type="submit">Ajouter la camera</button>

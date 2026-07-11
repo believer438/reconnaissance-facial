@@ -775,7 +775,7 @@ def camera_list(request: HttpRequest) -> HttpResponse:
         if form.is_valid():
             cam = form.save()
             _syslog(request, SystemLog.ACTION_CREATE, SystemLog.OBJ_CAMERA,
-                    cam.id, cam.name, f"URL: {cam.stream_url} | Zone: {cam.zone_type}")
+                    cam.id, cam.name, f"Source: {cam.source_display} | Zone: {cam.zone_type}")
             messages.success(request, f"Camera '{cam.name}' ajoutee.")
             return redirect("attendance:camera_list")
         messages.error(request, "Erreur dans le formulaire.")
