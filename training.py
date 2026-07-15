@@ -16,6 +16,6 @@ if __name__ == "__main__":
         raise SystemExit(1)
 
     print(
-        f"Modele entraine: {summary.students} etudiant(s), "
+        f"Modele entraine: {summary.students} eleve(s), "
         f"{summary.photos} photo(s), {summary.faces} visage(s)."
     )

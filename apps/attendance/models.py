@@ -65,7 +65,7 @@ class JourFerie(models.Model):
 class Salle(models.Model):
     nom = models.CharField(max_length=80, unique=True, verbose_name="Nom de la salle")
     batiment = models.CharField(max_length=80, blank=True, default="", verbose_name="Batiment")
-    capacite = models.PositiveIntegerField(default=30, verbose_name="Capacite (etudiants)")
+    capacite = models.PositiveIntegerField(default=30, verbose_name="Capacite (etudis)")
     description = models.TextField(blank=True, default="", verbose_name="Description")
     is_active = models.BooleanField(default=True, verbose_name="Active")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -604,7 +604,7 @@ class RecognitionReviewQueue(models.Model):
     student_proposed = models.ForeignKey(
         "Student", on_delete=models.SET_NULL, null=True, blank=True,
         related_name="review_proposals",
-        verbose_name="Etudiant propose par l'IA",
+        verbose_name="Eleve propose par l'IA",
     )
     confidence_proposed = models.FloatField(
         default=0.0, verbose_name="Score confiance (0-100, plus haut = meilleur)"
@@ -908,7 +908,7 @@ class SystemConfig(models.Model):
     cooldown_detection_minutes = models.PositiveIntegerField(
         default=5,
         verbose_name="Cooldown anti-doublon (min)",
-        help_text="Intervalle minimal entre deux detections du meme etudiant dans la meme session.",
+        help_text="Intervalle minimal entre deux detections du meme eleve dans la meme session.",
     )
 
     # Seuils de confiance (distance inverse du score — plus bas = meilleure correspondance)
