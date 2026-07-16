@@ -180,9 +180,9 @@
 
                 <!-- Webcam -->
                 <div style="position:relative; margin-bottom:0.75rem;">
-                    <video id="webcam" autoplay muted playsinline style="width:100%; border-radius:6px; border:1px solid var(--border); display:none; background:#000; max-height:240px; object-fit:cover;"></video>
+                    <video id="webcam" autoplay muted playsinline style="width:100%; height:clamp(360px, 48vw, 540px); border-radius:6px; border:1px solid var(--border); display:none; background:#000; object-fit:contain;"></video>
                     <canvas id="canvas" style="display:none;"></canvas>
-                    <div id="webcam-placeholder" style="border:2px dashed var(--border); border-radius:6px; padding:1.5rem; text-align:center; color:var(--muted); background:var(--surface-hover);">
+                    <div id="webcam-placeholder" style="border:2px dashed var(--border); border-radius:6px; min-height:360px; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:1.5rem; text-align:center; color:var(--muted); background:var(--surface-hover);">
                         <div style="font-size:2rem;">📷</div>
                         <div style="font-size:0.82rem; margin-top:0.3rem;">Caméra inactive</div>
                     </div>

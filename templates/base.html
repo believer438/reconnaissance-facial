@@ -108,21 +108,14 @@
                     <span class="nav-icon">&#9881;</span> Configuration
                 </a>
                 {% if user.is_superuser or user.is_staff %}
-                <a href="{% url 'attendance:user_list' %}"
-                   class="nav-link {% if 'user_' in request.resolver_match.url_name %}active{% endif %}">
-                    <span class="nav-icon">&#128101;</span> Utilisateurs
-                </a>
-                <a href="{% url 'attendance:system_log' %}"
-                   class="nav-link {% if request.resolver_match.url_name == 'system_log' %}active{% endif %}">
-                    <span class="nav-icon">&#128221;</span> Journal activité
+                <a href="{% url 'attendance:administration_dashboard' %}"
+                   class="nav-link {% if request.resolver_match.url_name == 'administration_dashboard' or 'user_' in request.resolver_match.url_name or request.resolver_match.url_name == 'system_log' %}active{% endif %}">
+                    <span class="nav-icon">&#128737;</span> Administration
                 </a>
                 {% endif %}
                 <a href="{% url 'attendance:detection_events' %}"
                    class="nav-link {% if request.resolver_match.url_name == 'detection_events' %}active{% endif %}">
                     <span class="nav-icon">&#128196;</span> Évènements bruts
-                </a>
-                <a href="/facial/admin/" class="nav-link" target="_blank">
-                    <span class="nav-icon">&#128737;</span> Administration
                 </a>
             </div>
         </nav>

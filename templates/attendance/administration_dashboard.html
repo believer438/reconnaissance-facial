@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Administration — SecPresence{% endblock %}
+{% block page_title %}Administration{% endblock %}
+{% block topbar_actions %}<a href="{% url 'attendance:user_create' %}" class="button primary sm">+ Créer un utilisateur</a>{% endblock %}
+
+{% block content %}
+<div class="panel" style="margin-bottom:1rem; background:linear-gradient(135deg,#172554,#1d4ed8); color:#fff; border:none;">
+    <div class="panel-body" style="padding:1.25rem 1.5rem;"><div style="font-size:1.35rem; font-weight:750;">Espace d'administration</div><div style="margin-top:.25rem; color:#dbeafe;">Gérez les accès, la configuration et le suivi du système depuis une seule page.</div></div>
+</div>
+<div class="stats-grid" style="grid-template-columns:repeat(3,1fr); margin-bottom:1rem;">
+    <div class="stat-card"><div class="label">Utilisateurs actifs</div><div class="value">{{ user_active }}</div><div class="sub">sur {{ user_total }} compte(s)</div></div>
+    <div class="stat-card"><div class="label">Administrateurs</div><div class="value">{{ admin_total }}</div><div class="sub">accès système complet</div></div>
+    <div class="stat-card"><div class="label">Élèves actifs</div><div class="value">{{ eleve_total }}</div><div class="sub">dans {{ classe_total }} classe(s)</div></div>
+</div>
+<div class="grid-2" style="align-items:start; gap:1rem;">
+    <div class="panel"><div class="panel-head"><h3>Actions d'administration</h3></div><div class="panel-body" style="display:grid; gap:.65rem;">
+        <a class="button primary" href="{% url 'attendance:user_create' %}">+ Créer un utilisateur</a>
+        <a class="button secondary" href="{% url 'attendance:user_list' %}">👥 Gérer les utilisateurs, rôles et accès</a>
+        <a class="button secondary" href="{% url 'attendance:system_config' %}">⚙ Configuration de l'établissement</a>
+        <a class="button secondary" href="{% url 'attendance:system_log' %}">📋 Consulter le journal d'activité</a>
+        <a class="button secondary" href="{% url 'attendance:camera_list' %}">📷 Gérer les caméras ({{ camera_total }} active(s))</a>
+    </div></div>
+    <div class="panel"><div class="panel-head"><h3>Comptes et rôles</h3></div><div class="panel-body" style="padding:0;">
+        {% for profile in roles %}<div style="display:flex; justify-content:space-between; align-items:center; padding:.7rem 1rem; border-bottom:1px solid var(--border);"><div><strong>{{ profile.user.username }}</strong><small style="display:block;color:var(--muted);">{{ profile.user.get_full_name|default:profile.user.email|default:"Sans information" }}</small></div><span class="badge {% if profile.role == 'admin' %}badge-yellow{% elif profile.role == 'enseignant' %}badge-blue{% else %}badge-muted{% endif %}">{{ profile.get_role_display }}</span></div>{% empty %}<div style="padding:1rem; color:var(--muted);">Aucun profil utilisateur configuré.</div>{% endfor %}
+    </div></div>
+</div>
+<div class="panel" style="margin-top:1rem;"><div class="panel-head"><h3>Dernières activités</h3><a href="{% url 'attendance:system_log' %}" class="button secondary sm">Voir tout</a></div><div class="panel-body" style="padding:0;">
+    {% for log in recent_logs %}<div style="display:grid; grid-template-columns:150px 1fr auto; gap:1rem; align-items:center; padding:.65rem 1rem; border-bottom:1px solid var(--border); font-size:.84rem;"><span style="color:var(--muted);">{{ log.created_at|date:"d/m/Y H:i" }}</span><span><strong>{{ log.user }}</strong> — {{ log.get_action_display }}{% if log.object_repr %} : {{ log.object_repr }}{% endif %}</span><span class="badge {% if log.success %}badge-green{% else %}badge-red{% endif %}">{% if log.success %}OK{% else %}Erreur{% endif %}</span></div>{% empty %}<div style="padding:1rem; color:var(--muted);">Aucune activité enregistrée.</div>{% endfor %}
+</div></div>
+{% endblock %}

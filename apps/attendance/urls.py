@@ -97,6 +97,7 @@ urlpatterns = [
     path("journal/", views.system_log_view, name="system_log"),
 
     # ── Gestion des utilisateurs ──────────────────────────────────────────────
+    path("administration/", views.administration_dashboard, name="administration_dashboard"),
     path("utilisateurs/", views.user_list, name="user_list"),
     path("utilisateurs/creer/", views.user_create, name="user_create"),
     path("utilisateurs/<int:user_id>/modifier/", views.user_edit, name="user_edit"),

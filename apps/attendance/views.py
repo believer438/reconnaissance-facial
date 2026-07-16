@@ -67,6 +67,7 @@ from .models import (
     TrainingHistory,
     TrainingPhoto,
     UnknownFaceLog,
+    UserProfile,
 )
 from .services.paths import LABEL_FILE, MODEL_FILE
 from .services.recognition import (
@@ -2380,6 +2381,25 @@ def _require_admin(request: HttpRequest) -> HttpResponse | None:
     if not request.user.is_authenticated or not (request.user.is_staff or request.user.is_superuser):
         return HttpResponse("Accès refusé. Vous devez être administrateur.", status=403)
     return None
+
+
+def administration_dashboard(request: HttpRequest) -> HttpResponse:
+    """Espace d'administration intégré, sans utiliser l'admin Django."""
+    guard = _require_admin(request)
+    if guard:
+        return guard
+
+    users = AuthUser.objects.all()
+    return render(request, "attendance/administration_dashboard.html", {
+        "user_total": users.count(),
+        "user_active": users.filter(is_active=True).count(),
+        "admin_total": users.filter(is_superuser=True).count(),
+        "eleve_total": Student.objects.filter(is_active=True).count(),
+        "classe_total": Classe.objects.filter(is_active=True).count(),
+        "camera_total": Camera.objects.filter(is_active=True).count(),
+        "recent_logs": SystemLog.objects.order_by("-created_at")[:8],
+        "roles": UserProfile.objects.select_related("user").order_by("user__username")[:8],
+    })
 
 
 def user_list(request: HttpRequest) -> HttpResponse:
