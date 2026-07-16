@@ -410,6 +410,7 @@ function bgStop(){
     const pb=document.getElementById('bg-preview-btn');
     if(pb) pb.style.display='none';
 }
+window.bgStop = bgStop;
 
 async function bgFrame(){
     if(!BG.running||!BG.stream) return;

@@ -294,7 +294,7 @@
         if (manualCodeWrap) manualCodeWrap.style.display = manual ? 'block' : 'none';
         if (!manual && codeInput) {
             codeInput.value = '';
-            if (codeStatus) codeStatus.textContent = 'Generation automatique a l\\'enregistrement.';
+            if (codeStatus) codeStatus.textContent = 'Generation automatique a l\'enregistrement.';
         } else if (codeInput && codeInput.value.trim()) {
             checkCode();
         } else if (codeStatus) {
@@ -356,6 +356,9 @@
         btnStart.disabled = true;
         btnStart.textContent = '⌛ Activation…';
         try {
+            // La reconnaissance globale peut déjà utiliser la webcam. Certains
+            // pilotes Windows n'acceptent pas deux accès simultanés.
+            if (typeof window.bgStop === 'function') window.bgStop();
             stream = await navigator.mediaDevices.getUserMedia({
                 video: {width: {ideal: 640}, height: {ideal: 480}}, audio: false
             });
