@@ -35,7 +35,7 @@
             <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem; line-height:1.6;">
                 Le seuil LBPH est la distance maximale acceptee. Plus la valeur est basse, plus
                 le systeme est strict. Recommande : entre 50 et 70.
-                Le filtrage par classe garantit qu'un etudiant ne peut pas etre marque dans une session
+                Le filtrage par classe garantit qu'un eleve ne peut pas etre marque dans une session
                 d'une autre classe.
             </p>
             <table style="width:100%; font-size:0.85rem; border-collapse:collapse;">
@@ -123,22 +123,22 @@
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; font-size:0.82rem; color:var(--muted); line-height:1.7;">
             <div>
                 <strong style="color:var(--text);">Tolerance retard</strong><br>
-                Definit combien de minutes apres le debut du cours un etudiant est encore marque "Present" plutot que "Retard".
+                Definit combien de minutes apres le debut du cours un eleve est encore marque "Present" plutot que "Retard".
                 Exemple : 15 min → arrive a debut+14 min = Present ; debut+16 min = Retard.
             </div>
             <div>
                 <strong style="color:var(--text);">Fenetre pre-cours</strong><br>
                 Autorise la detection X minutes avant le debut officiel du cours.
-                Utile pour les etudiants qui arrivent tot. En dehors de cette fenetre, la detection est rejetee.
+                Utile pour les eleves qui arrivent tot. En dehors de cette fenetre, la detection est rejetee.
             </div>
             <div>
                 <strong style="color:var(--text);">Seuil LBPH</strong><br>
                 Distance maximale acceptee par le modele LBPH. Plus strict (valeur basse) = moins de faux positifs
-                mais risque de ne pas reconnaitre les etudiants avec lunettes, masque, ou mauvais eclairage.
+                mais risque de ne pas reconnaitre les eleves avec lunettes, masque, ou mauvais eclairage.
             </div>
             <div>
                 <strong style="color:var(--text);">Filtrage par classe</strong><br>
-                Si actif, un etudiant de la Classe A ne peut pas etre marque dans une session de la Classe B.
+                Si actif, un eleve de la Classe A ne peut pas etre marque dans une session de la Classe B.
                 Fortement recommande pour eviter les fraudes entre classes.
             </div>
         </div>

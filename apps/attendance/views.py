@@ -205,7 +205,7 @@ def classe_list(request: HttpRequest) -> HttpResponse:
     else:
         form = ClasseForm()
     classes = Classe.objects.annotate(
-        nb_etudiants=Count("students", filter=Q(students__is_active=True)),
+        nb_eleves=Count("students", filter=Q(students__is_active=True)),
         nb_horaires=Count("schedules"),
     ).order_by("niveau", "nom")
     return render(request, "attendance/classe_list.html", {"classes": classes, "form": form})
@@ -752,7 +752,7 @@ def session_mark_absent(request: HttpRequest, session_id: int) -> HttpResponse:
         session.status = CourseSession.STATUS_FERME
         session.closed = True
         session.save(update_fields=["status", "closed"])
-        messages.success(request, f"{count} etudiant(s) marque(s) absent(s). Session fermee.")
+        messages.success(request, f"{count} eleve(s) marque(s) absent(s). Session fermee.")
     return redirect("attendance:session_detail", session_id=session_id)
 
 
@@ -1629,7 +1629,7 @@ def train_model_view(request: HttpRequest) -> HttpResponse:
                         f"{summary.skipped_blurry} floues ignorees | {duration:.1f}s")
         messages.success(
             request,
-            f"Modele entraine : {summary.students} etudiant(s), {summary.faces} visage(s) utiles"
+            f"Modele entraine : {summary.students} eleve(s), {summary.faces} visage(s) utiles"
             f"{' | ' + str(summary.skipped_blurry) + ' photo(s) floue(s) ignoree(s)' if summary.skipped_blurry else ''}.",
         )
     return redirect("attendance:dashboard")
@@ -1712,7 +1712,7 @@ def recognize_upload_view(request: HttpRequest) -> HttpResponse:
                 id=session_id, status=CourseSession.STATUS_OUVERT
             ).first()
 
-        # Filtrage par classe (point 12 : seulement les etudiants de la classe active)
+        # Filtrage par classe (point 12 : seulement les eleves de la classe active)
         allowed_ids: frozenset[int] | None = None
         if course_session and SystemConfig.get().filtrer_par_classe:
             sched = course_session.schedule

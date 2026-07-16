@@ -40,7 +40,7 @@ class Migration(migrations.Migration):
                 ('camera', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='review_queue_items', to='attendance.camera', verbose_name='Camera')),
                 ('course_session', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='review_queue_items', to='attendance.coursesession', verbose_name='Session de cours')),
                 ('second_candidate', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='review_second_proposals', to='attendance.student', verbose_name='Second candidat')),
-                ('student_proposed', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='review_proposals', to='attendance.student', verbose_name="Etudiant propose par l'IA")),
+                ('student_proposed', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='review_proposals', to='attendance.student', verbose_name="Eleve propose par l'IA")),
             ],
             options={
                 'verbose_name': 'Ticket de revue reconnaissance',

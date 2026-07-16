@@ -129,12 +129,12 @@
 {% if students_en_alerte %}
 <div class="panel" style="margin-bottom:1rem; border-color:rgba(239,68,68,0.3);">
     <div class="panel-head" style="background:rgba(239,68,68,0.08);">
-        <h3 style="color:#ef4444;">&#9888; Alerte absences — {{ students_en_alerte|length }} etudiant(s) avec {{ seuil_absences }}+ absences</h3>
+        <h3 style="color:#ef4444;">&#9888; Alerte absences — {{ students_en_alerte|length }} eleve(s) avec {{ seuil_absences }}+ absences</h3>
         <a href="{% url 'attendance:reports' %}" class="button secondary sm">Voir rapport complet</a>
     </div>
     <div class="table-wrap">
         <table class="attendance-table-compact">
-            <thead><tr><th>Etudiant</th><th>Classe</th><th>Absences</th><th></th></tr></thead>
+            <thead><tr><th>Eleve</th><th>Classe</th><th>Absences</th><th></th></tr></thead>
             <tbody>
                 {% for s in students_en_alerte %}
                 <tr>
@@ -152,14 +152,9 @@
 
 <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);">
     <div class="stat-card">
-        <div class="label">Etudiants</div>
+        <div class="label">Eleves</div>
         <div class="value">{{ student_total }}</div>
         <div class="sub">actifs</div>
-    </div>
-    <div class="stat-card">
-        <div class="label">Salles</div>
-        <div class="value">{{ salle_total }}</div>
-        <div class="sub"><a href="{% url 'attendance:salle_list' %}">actives</a></div>
     </div>
     <div class="stat-card">
         <div class="label">Cameras</div>
@@ -219,11 +214,10 @@
             <div class="panel-body" style="display:flex; flex-direction:column; gap:0.5rem;">
                 <a href="{% url 'attendance:camera_monitor' %}" target="_blank" class="button primary" style="justify-content:flex-start;">&#9680; Reconnaissance en direct (moniteur)</a>
                 <a href="{% url 'attendance:recognize_upload' %}" class="button secondary" style="justify-content:flex-start;">&#9685; Upload photo</a>
-                <a href="{% url 'attendance:student_create' %}" class="button secondary" style="justify-content:flex-start;">+ Ajouter un etudiant</a>
+                <a href="{% url 'attendance:student_create' %}" class="button secondary" style="justify-content:flex-start;">+ Ajouter un eleve</a>
                 <a href="{% url 'attendance:reports' %}" class="button secondary" style="justify-content:flex-start;">&#9636; Rapports &amp; CSV</a>
                 <a href="{% url 'attendance:export_excel' %}" class="button secondary" style="justify-content:flex-start;">&#9999; Exporter Excel (.xlsx)</a>
                 <a href="{% url 'attendance:jours_feries_list' %}" class="button secondary" style="justify-content:flex-start;">&#9728; Calendrier des conges</a>
-                <a href="{% url 'attendance:salle_list' %}" class="button secondary" style="justify-content:flex-start;">&#9641; Gestion des salles</a>
             </div>
         </div>
 

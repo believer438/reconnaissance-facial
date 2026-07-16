@@ -13,7 +13,7 @@
         </div>
         <div class="panel-body">
             <p style="color:var(--muted); font-size:0.85rem; margin-bottom:1rem;">
-                Uploadez une photo contenant un ou plusieurs visages. Le modele LBPH identifie les etudiants et enregistre les presences automatiquement.
+                Uploadez une photo contenant un ou plusieurs visages. Le modele LBPH identifie les eleves et enregistre les presences automatiquement.
             </p>
             <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
@@ -63,7 +63,7 @@
                     <thead>
                         <tr>
                             <th>#</th>
-                            <th>Etudiant</th>
+                            <th>Eleve</th>
                             <th>Confiance</th>
                             <th>Statut</th>
                             <th>Presence</th>

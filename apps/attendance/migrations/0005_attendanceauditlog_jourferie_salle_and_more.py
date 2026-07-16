@@ -48,7 +48,7 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('nom', models.CharField(max_length=80, unique=True, verbose_name='Nom de la salle')),
                 ('batiment', models.CharField(blank=True, default='', max_length=80, verbose_name='Batiment')),
-                ('capacite', models.PositiveIntegerField(default=30, verbose_name='Capacite (etudiants)')),
+                ('capacite', models.PositiveIntegerField(default=30, verbose_name='Capacite (eleves)')),
                 ('description', models.TextField(blank=True, default='', verbose_name='Description')),
                 ('is_active', models.BooleanField(default=True, verbose_name='Active')),
                 ('created_at', models.DateTimeField(auto_now_add=True)),

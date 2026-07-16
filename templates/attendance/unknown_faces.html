@@ -11,7 +11,7 @@
         <strong>{{ page_obj.paginator.count }}</strong> visage(s) non identifie(s) capture(s)
     </div>
     <div class="status-item" style="margin-left:auto; font-size:0.8rem; color:var(--muted);">
-        Ces visages n'ont pas ete reconnus par le modele LBPH. Verifiez si ce sont des etudiants non enregistres.
+        Ces visages n'ont pas ete reconnus par le modele LBPH. Verifiez si ce sont des eleves non enregistres.
     </div>
 </div>
 
@@ -52,8 +52,8 @@
 </div>
 
 <p style="font-size:0.82rem; color:var(--muted); margin-top:1rem;">
-    Astuce : Si vous reconnaissez un visage ici, ajoutez cet etudiant au systeme avec
-    <a href="{% url 'attendance:student_create' %}">Ajouter un etudiant</a>, ajoutez ses photos, reentrai­nez le modele.
+    Astuce : Si vous reconnaissez un visage ici, ajoutez cet eleve au systeme avec
+    <a href="{% url 'attendance:student_create' %}">Ajouter un eleve</a>, ajoutez ses photos, reentrai­nez le modele.
 </p>
 
 {% else %}

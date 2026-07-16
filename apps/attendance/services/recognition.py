@@ -612,7 +612,7 @@ def recognize_from_image_bytes(
                 FaceDetectionEvent.ETAPE_INCONNU,
                 student=None, session=session, camera=camera,
                 confiance=score, source=source,
-                raison=f"Etudiant id={label_id} introuvable ou inactif",
+                raison=f"Eleve id={label_id} introuvable ou inactif",
             )
             results.append(FaceResult(
                 status="unknown", student=None, confidence=0.0,

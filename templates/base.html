@@ -50,10 +50,6 @@
                    class="nav-link {% if 'jours_feries' in request.resolver_match.url_name %}active{% endif %}">
                     <span class="nav-icon">&#9728;</span> Calendrier scolaire
                 </a>
-                <a href="{% url 'attendance:salle_list' %}"
-                   class="nav-link {% if 'salle' in request.resolver_match.url_name %}active{% endif %}">
-                    <span class="nav-icon">&#9641;</span> Salles
-                </a>
             </div>
 
             <div class="nav-section">
@@ -273,6 +269,7 @@ function pjaxLoad(url, push=true){
             const newMain = doc.getElementById('pjax-content');
             const curMain = document.getElementById('pjax-content');
             if(!newMain||!curMain){ window.location.href=url; return; }
+            document.dispatchEvent(new Event('pjax:before-replace'));
             curMain.innerHTML = newMain.innerHTML;
             document.title = doc.title;
             if(push) history.pushState({pjax:true,url},doc.title,url);

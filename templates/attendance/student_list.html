@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Etudiants — UniPresence{% endblock %}
-{% block page_title %}Etudiants{% endblock %}
+{% block title %}Eleves — UniPresence{% endblock %}
+{% block page_title %}Eleves{% endblock %}
 
 {% block topbar_actions %}
-<a href="{% url 'attendance:student_create' %}" class="button primary sm">+ Ajouter un etudiant</a>
+<a href="{% url 'attendance:student_create' %}" class="button primary sm">+ Ajouter un eleve</a>
 {% endblock %}
 
 {% block content %}
@@ -29,7 +29,7 @@
 
 <div class="panel">
     <div class="panel-head">
-        <h3>{{ students|length }} etudiant(s){% if q %} pour "{{ q }}"{% endif %}</h3>
+        <h3>{{ students|length }} eleve(s){% if q %} pour "{{ q }}"{% endif %}</h3>
     </div>
     {% if students %}
     <div class="table-wrap">
@@ -85,8 +85,8 @@
     </div>
     {% else %}
     <div class="empty-state">
-        {% if q %}Aucun etudiant trouve pour "{{ q }}".{% else %}Aucun etudiant enregistre.{% endif %}<br>
-        <a href="{% url 'attendance:student_create' %}">Ajouter le premier etudiant</a>
+        {% if q %}Aucun eleve trouve pour "{{ q }}".{% else %}Aucun eleve enregistre.{% endif %}<br>
+        <a href="{% url 'attendance:student_create' %}">Ajouter le premier eleve</a>
     </div>
     {% endif %}
 </div>

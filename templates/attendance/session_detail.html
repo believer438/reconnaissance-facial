@@ -53,7 +53,7 @@
 {% elif session.status == 'en_attente' %}
 <div class="message" style="margin-bottom:1.5rem; background:rgba(234,179,8,0.08); border-color:rgba(234,179,8,0.3); color:#eab308;">
     <strong>Session en attente.</strong> Cliquez sur "Ouvrir la session" pour autoriser la reconnaissance faciale.
-    Les etudiants peuvent etre detectes {{ session.minutes_avant_cours }} minute(s) avant le debut.
+    Les eleves peuvent etre detectes {{ session.minutes_avant_cours }} minute(s) avant le debut.
 </div>
 {% elif session.status == 'ouvert' %}
 <div class="message" style="margin-bottom:1.5rem; background:rgba(34,197,94,0.08); border-color:rgba(34,197,94,0.3); color:#22c55e;">
@@ -66,7 +66,7 @@
     <div class="stat-card">
         <div class="label">Inscrits</div>
         <div class="value">{{ enrolled_count }}</div>
-        <div class="sub">etudiants</div>
+        <div class="sub">eleves</div>
     </div>
     <div class="stat-card">
         <div class="label">Presents / Excuses</div>
@@ -104,7 +104,7 @@
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>Etudiant</th>
+                    <th>Eleve</th>
                     <th>Matricule</th>
                     <th>Classe</th>
                     <th>Statut</th>
@@ -161,7 +161,7 @@
         </table>
     </div>
     {% else %}
-    <div class="empty-state">Aucun etudiant dans cette session.<br>Associez un horaire ou inscrivez des etudiants au cours.</div>
+    <div class="empty-state">Aucun eleve dans cette session.<br>Associez un horaire ou inscrivez des eleves au cours.</div>
     {% endif %}
 </div>
 

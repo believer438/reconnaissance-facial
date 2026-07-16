@@ -934,7 +934,7 @@ class SystemConfig(models.Model):
     filtrer_par_classe = models.BooleanField(
         default=True,
         verbose_name="Filtrer par classe",
-        help_text="Ne reconnaitre que les etudiants de la classe liee a la session active.",
+        help_text="Ne reconnaitre que les eleves de la classe liee a la session active.",
     )
     archiver_evenements_bruts = models.BooleanField(
         default=True,
@@ -1239,7 +1239,7 @@ class SystemLog(models.Model):
     OBJ_SYSTEM    = "system"
 
     OBJ_CHOICES = [
-        (OBJ_STUDENT,    "Etudiant"),
+        (OBJ_STUDENT,    "Eleve"),
         (OBJ_CAMERA,     "Camera"),
         (OBJ_CLASSE,     "Classe"),
         (OBJ_COURSE,     "Cours"),
@@ -1320,7 +1320,7 @@ class TrainingHistory(models.Model):
     started_at       = models.DateTimeField(auto_now_add=True, verbose_name="Debut")
     completed_at     = models.DateTimeField(null=True, blank=True, verbose_name="Fin")
     duration_seconds = models.FloatField(default=0.0, verbose_name="Duree (sec)")
-    nb_students      = models.PositiveIntegerField(default=0, verbose_name="Etudiants traites")
+    nb_students      = models.PositiveIntegerField(default=0, verbose_name="Eleves traites")
     nb_photos        = models.PositiveIntegerField(default=0, verbose_name="Photos utilisees")
     nb_skipped_blurry = models.PositiveIntegerField(default=0, verbose_name="Photos floues ignorees")
     success          = models.BooleanField(default=True, verbose_name="Succes")

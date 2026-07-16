@@ -18,7 +18,7 @@
     {% endif %}
     <div class="status-item"><span class="badge badge-blue">{{ course.credits }} credit(s)</span></div>
     <div class="status-item" style="margin-left:auto;">
-        <span class="badge badge-green">{{ enrollments|length }} etudiant(s) inscrit(s)</span>
+        <span class="badge badge-green">{{ enrollments|length }} eleve(s) inscrit(s)</span>
     </div>
 </div>
 
@@ -27,7 +27,7 @@
     <div>
         <div class="panel" style="margin-bottom:1.5rem;">
             <div class="panel-head">
-                <h3>Etudiants inscrits</h3>
+                <h3>Eleves inscrits</h3>
             </div>
             <div style="padding:0.75rem 1rem; border-bottom:1px solid var(--border);">
                 <form method="post" action="{% url 'attendance:enrollment_add' course.id %}" style="display:flex; gap:0.75rem;">
@@ -40,7 +40,7 @@
             <div class="table-wrap">
                 <table class="attendance-table-compact">
                     <thead>
-                        <tr><th>Etudiant</th><th>Matricule</th><th>Classe</th><th></th></tr>
+                        <tr><th>Eleve</th><th>Matricule</th><th>Classe</th><th></th></tr>
                     </thead>
                     <tbody>
                         {% for enrollment in enrollments %}
@@ -62,7 +62,7 @@
                 </table>
             </div>
             {% else %}
-            <div class="empty-state">Aucun etudiant inscrit. Inscrivez des etudiants ci-dessus.</div>
+            <div class="empty-state">Aucun eleve inscrit. Inscrivez des eleves ci-dessus.</div>
             {% endif %}
         </div>
     </div>

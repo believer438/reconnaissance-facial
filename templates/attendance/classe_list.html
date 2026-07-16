@@ -4,7 +4,7 @@
 {% block page_title %}Gestion des classes{% endblock %}
 
 {% block topbar_actions %}
-<a href="{% url 'attendance:student_list' %}" class="button secondary sm">Voir les etudiants</a>
+<a href="{% url 'attendance:student_list' %}" class="button secondary sm">Voir les eleves</a>
 {% endblock %}
 
 {% block content %}
@@ -70,7 +70,7 @@
                         <th>Classe</th>
                         <th>Niveau</th>
                         <th>Annee</th>
-                        <th>Etudiants</th>
+                        <th>Eleves</th>
                         <th>Horaires</th>
                         <th></th>
                     </tr>
@@ -88,13 +88,13 @@
                         <td style="color:var(--muted); font-size:0.8rem;">{{ classe.annee_academique }}</td>
                         <td>
                             <a href="{% url 'attendance:student_list' %}?classe={{ classe.id }}" style="color:var(--accent);">
-                                {{ classe.nb_etudiants }} etudiant{{ classe.nb_etudiants|pluralize }}
+                                {{ classe.nb_eleves }} eleve{{ classe.nb_eleves|pluralize }}
                             </a>
                         </td>
                         <td style="color:var(--muted);">{{ classe.nb_horaires }} horaire{{ classe.nb_horaires|pluralize }}</td>
                         <td style="text-align:right;">
                             <a href="{% url 'attendance:classe_detail' classe.id %}" class="button secondary sm" style="padding:0.2rem 0.5rem;">Details</a>
-                            <form method="post" action="{% url 'attendance:classe_delete' classe.id %}" style="display:inline;" onsubmit="return confirm('Supprimer la classe {{ classe }} ? Les etudiants seront delie mais pas supprimes.');">
+                            <form method="post" action="{% url 'attendance:classe_delete' classe.id %}" style="display:inline;" onsubmit="return confirm('Supprimer la classe {{ classe }} ? Les eleves seront delie mais pas supprimes.');">
                                 {% csrf_token %}
                                 <button type="submit" class="button secondary sm" style="color:var(--danger); padding:0.2rem 0.5rem;">Suppr.</button>
                             </form>
@@ -107,7 +107,7 @@
         {% else %}
         <div class="empty-state">
             Aucune classe configuree.<br>
-            Commencez par creer vos classes avant d'ajouter des etudiants.
+            Commencez par creer vos classes avant d'ajouter des eleves.
         </div>
         {% endif %}
     </div>

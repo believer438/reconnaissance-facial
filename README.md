@@ -31,7 +31,7 @@ Cette commande:
 
 ## Flux recommande
 
-1. Ajouter un etudiant depuis le tableau de bord
+1. Ajouter un eleve depuis le tableau de bord
 2. Importer plusieurs photos nettes du visage
 3. Cliquer sur `Entrainer le modele`
 4. Cliquer sur `Lancer la reconnaissance`

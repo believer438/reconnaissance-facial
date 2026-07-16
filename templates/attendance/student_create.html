@@ -254,6 +254,23 @@
     const manualCodeWrap = document.getElementById('manual-code-wrap');
     const codeModeInputs = document.querySelectorAll('input[name="matricule_mode"]');
 
+    function setCameraState(active, message) {
+        placeholder.style.display = active ? 'none' : 'block';
+        video.style.display = active ? 'block' : 'none';
+        btnCapture.disabled = !active;
+        btnStart.textContent = active ? '⏹ Désactiver' : '📷 Activer';
+        if (!active && message) {
+            placeholder.querySelector('div:last-child').textContent = message;
+        }
+    }
+
+    function stopCamera() {
+        if (stream) stream.getTracks().forEach(track => track.stop());
+        stream = null;
+        video.srcObject = null;
+        setCameraState(false, 'Caméra inactive');
+    }
+
     function updateUI() {
         const n = blobs.length;
         const pct = Math.min(n/MIN*100, 100);
@@ -328,19 +345,42 @@
 
     btnStart.addEventListener('click', async () => {
         if(stream) {
-            stream.getTracks().forEach(t=>t.stop()); stream=null;
-            video.style.display='none'; placeholder.style.display='block';
-            btnCapture.disabled=true; btnStart.textContent='📷 Activer'; return;
+            stopCamera();
+            return;
         }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            setCameraState(false, 'Caméra non prise en charge par ce navigateur');
+            alert("L'accès à la caméra nécessite un navigateur récent et une connexion sécurisée (localhost ou HTTPS).");
+            return;
+        }
+        btnStart.disabled = true;
+        btnStart.textContent = '⌛ Activation…';
         try {
-            stream = await navigator.mediaDevices.getUserMedia({video:{width:640,height:480}});
-            video.srcObject=stream; video.style.display='block'; placeholder.style.display='none';
-            btnCapture.disabled=false; btnStart.textContent='⏹ Désactiver';
-        } catch(e) { alert('Caméra inaccessible : '+e.message); }
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: {width: {ideal: 640}, height: {ideal: 480}}, audio: false
+            });
+            video.srcObject = stream;
+            await video.play();
+            await new Promise(resolve => {
+                if (video.readyState >= HTMLMediaElement.HAVE_METADATA) return resolve();
+                video.addEventListener('loadedmetadata', resolve, {once: true});
+            });
+            setCameraState(true);
+        } catch(e) {
+            stopCamera();
+            const reason = e && e.name === 'NotAllowedError'
+                ? 'Permission refusée. Autorisez la caméra dans le navigateur.'
+                : 'Caméra inaccessible : ' + ((e && e.message) || 'erreur inconnue');
+            setCameraState(false, reason);
+            alert(reason);
+        } finally {
+            btnStart.disabled = false;
+            if (!stream) btnStart.textContent = '📷 Activer';
+        }
     });
 
     btnCapture.addEventListener('click', () => {
-        if(!stream||blobs.length>=MAX) return;
+        if(!stream||blobs.length>=MAX||!video.videoWidth) return;
         canvas.width=video.videoWidth; canvas.height=video.videoHeight;
         canvas.getContext('2d').drawImage(video,0,0);
         const angle = document.getElementById('angle-select').value;
@@ -368,6 +408,11 @@
         });
     }
     updateCodeMode();
+
+    // Avec la navigation interne, la page peut être remplacée sans rechargement :
+    // libérer la webcam évite qu'elle reste verrouillée sur la page suivante.
+    window.addEventListener('pagehide', stopCamera, {once: true});
+    document.addEventListener('pjax:before-replace', stopCamera, {once: true});
 })();
 </script>
 {% endblock %}

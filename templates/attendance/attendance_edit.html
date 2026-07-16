@@ -20,7 +20,7 @@
         <div class="panel" style="margin-bottom:1.5rem;">
             <div class="panel-head"><h3>Enregistrement concerne</h3></div>
             <div class="panel-body" style="font-size:0.88rem; line-height:2;">
-                <div><span style="color:var(--muted);">Etudiant :</span> <strong>{{ record.student_name_snapshot }}</strong></div>
+                <div><span style="color:var(--muted);">Eleve :</span> <strong>{{ record.student_name_snapshot }}</strong></div>
                 <div><span style="color:var(--muted);">Classe :</span> {{ record.classroom_snapshot|default:"—" }}</div>
                 {% if record.course_session %}
                 <div><span style="color:var(--muted);">Cours :</span> {{ record.course_session.course.code }} — {{ record.course_session.course.name }}</div>
