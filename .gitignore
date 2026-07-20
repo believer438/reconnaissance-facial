@@ -9,3 +9,14 @@ db.sqlite3
 # media/unknown_faces/
 # staticfiles/
 venv/
+SecPresence.spec
+build-pyinstaller.err.log
+build-pyinstaller.out.log
+build/
+build_windows.ps1
+desktop_launcher.py
+dist/
+installer.iss
+rebuild-pyinstaller.err.log
+rebuild-pyinstaller.out.log
+release/
